@@ -120,12 +120,19 @@ python -m pytest -q
 Der Protokollkern (`protocol.py`, `state.py`) hängt nicht von Home Assistant ab und wird gegen
 Referenztelegramme getestet; die Verbindung gegen eine simulierte Zentrale über TCP.
 
+## Icons
+
+Icons und Logos liegen in `custom_components/telenot/brand/`. Home Assistant nutzt sie von dort
+ab **2026.3**. Sie sind aus dem TELENOT-Logo erstellt, wie es auf
+[telenot.com](https://www.telenot.com/) verwendet wird.
+
 ## Dank
 
 Das Wissen über das GMS-Protokoll stammt aus [carhensi/telenot-bridge](https://github.com/carhensi/telenot-bridge)
 und [carhensi/telenot-esp-bridge](https://github.com/carhensi/telenot-esp-bridge) (beide Apache-2.0),
 siehe [NOTICE](NOTICE). Kein Angebot der TELENOT ELECTRONIC GmbH und nicht von ihr unterstützt;
-*Telenot*, *complex* und *compasX* sind deren Marken.
+*Telenot*, *complex*, *compasX* und das TELENOT-Logo sind deren Marken und werden nur zur Kennzeichnung
+der unterstützten Hardware verwendet.
 
 ## Lizenz
 
