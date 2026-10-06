@@ -68,6 +68,10 @@ class PanelState:
     def is_active(self, address: int) -> bool | None:
         return self._bits.get(address)
 
+    def snapshot(self) -> dict[int, bool]:
+        """Copy of every known bit."""
+        return dict(self._bits)
+
     def apply_frame(self, frame: Frame) -> set[int]:
         """Apply all status records of a frame; return the addresses whose bit changed."""
         changed: set[int] = set()

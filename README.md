@@ -122,6 +122,11 @@ python -m pytest -q
 The protocol core (`protocol.py`, `state.py`) has no Home Assistant dependency and is tested
 against reference telegrams; the connection is tested against a simulated panel over TCP.
 
+`tools/probe.py` talks to a real panel with the integration's client but without Home
+Assistant: it watches and prints every change (read-only), simulates a restart gap
+(`--gap 120`), runs a scan (`--scan out.json`) or sends a single command (`--command …
+--confirm`). See its docstring.
+
 ## Icons
 
 The icons and logos live in `custom_components/telenot/brand/`. Home Assistant picks them up

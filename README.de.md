@@ -122,6 +122,11 @@ python -m pytest -q
 Der Protokollkern (`protocol.py`, `state.py`) hängt nicht von Home Assistant ab und wird gegen
 Referenztelegramme getestet; die Verbindung gegen eine simulierte Zentrale über TCP.
 
+`tools/probe.py` spricht mit dem Client der Integration, aber ohne Home Assistant, mit einer
+echten Zentrale: beobachten und jede Änderung ausgeben (nur lesend), eine Neustart-Lücke
+nachstellen (`--gap 120`), Suchlauf (`--scan out.json`) oder genau einen Befehl senden
+(`--command … --confirm`). Details im Docstring.
+
 ## Icons
 
 Icons und Logos liegen in `custom_components/telenot/brand/`. Home Assistant nutzt sie von dort
