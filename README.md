@@ -10,8 +10,9 @@
   <a href="README.de.md">Deutsch</a>
 </p>
 
-> **Status: in development.** The protocol core is done and tested against telegrams
-> captured on a real panel; connection handling, entities and the setup flow are being
+> **Status: in development.** Protocol core and connection layer are done: tested against
+> telegrams captured on a real panel and against a simulated panel over TCP (reconnects,
+> silent panel, commands with confirmation, scan). Entities and the setup flow are being
 > built. Not ready for use yet.
 
 ---

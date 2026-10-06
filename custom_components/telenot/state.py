@@ -54,6 +54,7 @@ class PanelState:
     def __init__(self) -> None:
         self._bits: dict[int, bool] = {}
         self.night_flag = False
+        self.night_requested = False  # set before arming home for the night
         self.inputs_seen = False
         self.outputs_seen = False
 
@@ -88,7 +89,7 @@ class PanelState:
         else:
             self.outputs_seen = True
         changed = {a for a in block.addresses() if self._set(a, bool(block.is_active(a)))}
-        self._reset_night_flag()
+        self._update_night_flag()
         return changed
 
     def apply_message(self, message: Message) -> set[int]:
@@ -96,7 +97,7 @@ class PanelState:
         if message.extension not in (EXT_INPUTS, EXT_OUTPUTS):
             return set()
         changed = {message.address} if self._set(message.address, message.active) else set()
-        self._reset_night_flag()
+        self._update_night_flag()
         return changed
 
     def _set(self, address: int, active: bool) -> bool:
@@ -105,9 +106,14 @@ class PanelState:
         self._bits[address] = active
         return old != active
 
-    def _reset_night_flag(self) -> None:
-        """Night mode is virtual (armed home + flag); it ends with away or disarmed."""
-        if self.is_active(ADDR_ARMED_AWAY) or self.is_active(ADDR_DISARMED):
+    def _update_night_flag(self) -> None:
+        """Night mode is virtual: armed home + flag. A request turns into the flag as soon as
+        the panel reports armed home; away or disarmed end it. A request survives status
+        telegrams that still show the old state right after the command."""
+        if self.is_active(ADDR_ARMED_HOME) and self.night_requested:
+            self.night_flag = True
+            self.night_requested = False
+        elif self.is_active(ADDR_ARMED_AWAY) or self.is_active(ADDR_DISARMED):
             self.night_flag = False
 
     @property

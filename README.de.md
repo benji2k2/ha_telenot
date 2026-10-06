@@ -10,8 +10,9 @@
   <a href="README.md">English</a>
 </p>
 
-> **Stand: in Entwicklung.** Der Protokollkern ist fertig und gegen Telegramme getestet, die an
-> einer echten Zentrale mitgeschnitten wurden; Verbindung, Entitäten und Einrichtung entstehen
+> **Stand: in Entwicklung.** Protokollkern und Verbindungsschicht sind fertig: getestet gegen
+> Telegramme einer echten Zentrale und gegen eine simulierte Zentrale über TCP (Neuaufbau,
+> verstummte Zentrale, Befehle mit Quittung, Suchlauf). Entitäten und Einrichtung entstehen
 > gerade. Noch nicht einsatzbereit.
 
 ---
