@@ -155,9 +155,13 @@ async def test_setup_not_ready_without_panel(hass: HomeAssistant) -> None:
 
 
 async def test_devices_and_entities(hass: HomeAssistant, entry: MockConfigEntry) -> None:
-    devices = dr.async_get(hass)
-    panel_dev = devices.async_get_device(identifiers={(DOMAIN, entry.entry_id)})
-    area = devices.async_get_device(identifiers={(DOMAIN, f"{entry.entry_id}_mb5")})
+    by_id = {
+        ident[1]: device
+        for device in dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+        for ident in device.identifiers
+    }
+    panel_dev = by_id.get(entry.entry_id)
+    area = by_id.get(f"{entry.entry_id}_mb5")
     assert panel_dev and area
     assert area.name == "Fenster Atelier"
     assert area.via_device_id == panel_dev.id
