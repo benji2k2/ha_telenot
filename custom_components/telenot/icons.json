@@ -1,0 +1,31 @@
+{
+  "entity": {
+    "alarm_control_panel": {
+      "panel": {
+        "default": "mdi:shield-home"
+      }
+    },
+    "binary_sensor": {
+      "ready_home": {
+        "default": "mdi:shield-home-outline",
+        "state": {
+          "on": "mdi:shield-check"
+        }
+      },
+      "ready_away": {
+        "default": "mdi:shield-lock-outline",
+        "state": {
+          "on": "mdi:shield-check"
+        }
+      },
+      "bypassed": {
+        "default": "mdi:shield-off-outline"
+      }
+    },
+    "button": {
+      "reset": {
+        "default": "mdi:bell-cancel"
+      }
+    }
+  }
+}

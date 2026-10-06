@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="custom_components/telenot/brand/icon.png" width="128" alt="Telenot integration" />
+</p>
+
 <h1 align="center">Telenot — Home Assistant Integration</h1>
 
 <p align="center">
@@ -10,10 +14,9 @@
   <a href="README.de.md">Deutsch</a>
 </p>
 
-> **Status: in development.** Protocol core and connection layer are done: tested against
-> telegrams captured on a real panel and against a simulated panel over TCP (reconnects,
-> silent panel, commands with confirmation, scan). Entities and the setup flow are being
-> built. Not ready for use yet.
+> **Status: in development, not released yet.** Protocol, connection, setup flow with scan,
+> devices, entities and options are done and tested against telegrams of a real panel and a
+> simulated panel over TCP. A first test on a real panel is next.
 
 ---
 
@@ -29,7 +32,7 @@ This integration talks to the panel directly, reconnects without limit, marks ev
 **unavailable** when the panel is unreachable and reads the detectors' **names and detection
 areas from the panel** instead of making you find addresses by trial and error.
 
-## What you get (planned for 0.1)
+## What you get
 
 | Device | Entities |
 |---|---|
@@ -78,7 +81,7 @@ Things to know:
 Not yet released. Once it is: HACS → custom repository `benji2k2/ha_telenot` (category
 *Integration*) → install → restart Home Assistant.
 
-## Setup (planned)
+## Setup
 
 1. *Settings → Devices & services → Add integration → Telenot*.
 2. Enter host and port of the converter. The integration checks that the panel is talking.
@@ -87,7 +90,18 @@ Not yet released. Once it is: HACS → custom repository `benji2k2/ha_telenot` (
    Only read-only queries are sent during the scan.
 4. Confirm. Devices and entities are created; assign rooms to the detection-area devices.
 
-Options: alarm code, which modes need the code, virtual night mode, new scan.
+### Options
+
+- **Alarm code** – leave empty to never ask for one. With a code set, the panel card shows a
+  keypad.
+- **Require the code for** – any of *arm away*, *arm home*, *arm night*, *disarm*. Default:
+  *arm away* only. Actions not selected work without a code. A wrong code never reaches the
+  panel.
+- **Scan the panel again** – after the installer changed the programming. Uses the running
+  connection.
+
+Detectors get a device class guessed from their name (window, motion, tamper, …); change it with
+*Show as* in the entity settings if the guess is wrong.
 
 ## Coming from telenot-bridge (MQTT)
 

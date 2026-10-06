@@ -1,0 +1,117 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mit dem Wandler verbinden",
+        "description": "Host und TCP-Port des Seriell-Ethernet-Wandlers an der GMS-Schnittstelle der Zentrale. Eine andere Bridge vorher stoppen – der Wandler bedient nur einen Partner.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "IP-Adresse oder Hostname des Wandlers",
+          "port": "TCP-Server-Port des Wandlers"
+        }
+      },
+      "scan_choice": {
+        "title": "Melder aus der Zentrale lesen",
+        "description": "Die Zentrale antwortet. Jetzt die belegten Adressen mit Namen und Meldebereichen auslesen? Das dauert etwa 6 Sekunden je Adresse (rund 9 Minuten bei 80 Adressen); dabei werden nur Leseabfragen gesendet.",
+        "menu_options": {
+          "scan": "Jetzt auslesen (empfohlen)",
+          "skip_scan": "Überspringen – nur Alarmanlage und Status"
+        }
+      }
+    },
+    "progress": {
+      "scan": "Belegte Adressen, Namen und Meldebereiche werden aus der Zentrale gelesen …"
+    },
+    "error": {
+      "cannot_connect": "Die Zentrale antwortet nicht. Host, Port, freigeschaltetes GMS-Protokoll prüfen und ob noch eine andere Bridge verbunden ist."
+    },
+    "abort": {
+      "already_configured": "Dieser Wandler ist bereits eingerichtet.",
+      "scan_failed": "Die Verbindung brach während des Suchlaufs ab. Bitte erneut versuchen."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Telenot-Optionen",
+        "menu_options": {
+          "code": "Alarmcode",
+          "rescan": "Zentrale erneut auslesen"
+        }
+      },
+      "code": {
+        "title": "Alarmcode",
+        "description": "Code leer lassen, um nie nach einem Code zu fragen.",
+        "data": {
+          "code": "Code",
+          "code_for": "Code verlangen für"
+        }
+      }
+    },
+    "progress": {
+      "scan": "Belegte Adressen, Namen und Meldebereiche werden aus der Zentrale gelesen …"
+    },
+    "abort": {
+      "scan_failed": "Die Verbindung brach während des Suchlaufs ab. Bitte erneut versuchen."
+    }
+  },
+  "selector": {
+    "code_for": {
+      "options": {
+        "arm_away": "Extern scharf",
+        "arm_home": "Intern scharf",
+        "arm_night": "Nacht",
+        "disarm": "Unscharf"
+      }
+    }
+  },
+  "entity": {
+    "alarm_control_panel": {
+      "panel": {
+        "name": "Alarmanlage"
+      }
+    },
+    "binary_sensor": {
+      "ready_home": {
+        "name": "Intern bereit"
+      },
+      "ready_away": {
+        "name": "Extern bereit"
+      },
+      "alarm": {
+        "name": "Alarm"
+      },
+      "fault": {
+        "name": "Störung"
+      },
+      "connection": {
+        "name": "Verbindung zur Zentrale"
+      },
+      "bypassed": {
+        "name": "Gesperrt"
+      }
+    },
+    "button": {
+      "reset": {
+        "name": "Alarm zurücksetzen"
+      }
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {
+      "message": "Die Zentrale unter {host} antwortet nicht."
+    },
+    "invalid_code": {
+      "message": "Falscher Code."
+    },
+    "not_ready": {
+      "message": "Die Zentrale ist nicht bereit zum Scharfschalten – ein Melder ist offen."
+    },
+    "command_failed": {
+      "message": "Die Zentrale hat den Befehl nicht ausgeführt ({result})."
+    }
+  }
+}

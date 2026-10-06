@@ -1,0 +1,117 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to the converter",
+        "description": "Host and TCP port of the serial-to-Ethernet converter on the panel's GMS interface. Stop any other bridge first – the converter serves one client only.",
+        "data": {
+          "host": "Host",
+          "port": "Port"
+        },
+        "data_description": {
+          "host": "IP address or host name of the converter",
+          "port": "TCP server port of the converter"
+        }
+      },
+      "scan_choice": {
+        "title": "Read detectors from the panel",
+        "description": "The panel is talking. Read occupied addresses with their names and detection areas now? This takes about 6 seconds per address (around 9 minutes for 80 addresses) and sends read-only queries only.",
+        "menu_options": {
+          "scan": "Scan now (recommended)",
+          "skip_scan": "Skip – only the alarm panel and its status"
+        }
+      }
+    },
+    "progress": {
+      "scan": "Reading occupied addresses, names and detection areas from the panel …"
+    },
+    "error": {
+      "cannot_connect": "The panel did not answer. Check host, port, that the GMS protocol is enabled and that no other bridge is connected."
+    },
+    "abort": {
+      "already_configured": "This converter is already set up.",
+      "scan_failed": "The connection was lost during the scan. Try again."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Telenot options",
+        "menu_options": {
+          "code": "Alarm code",
+          "rescan": "Scan the panel again"
+        }
+      },
+      "code": {
+        "title": "Alarm code",
+        "description": "Leave the code empty to never ask for one.",
+        "data": {
+          "code": "Code",
+          "code_for": "Require the code for"
+        }
+      }
+    },
+    "progress": {
+      "scan": "Reading occupied addresses, names and detection areas from the panel …"
+    },
+    "abort": {
+      "scan_failed": "The connection was lost during the scan. Try again."
+    }
+  },
+  "selector": {
+    "code_for": {
+      "options": {
+        "arm_away": "Arm away",
+        "arm_home": "Arm home",
+        "arm_night": "Arm night",
+        "disarm": "Disarm"
+      }
+    }
+  },
+  "entity": {
+    "alarm_control_panel": {
+      "panel": {
+        "name": "Alarm system"
+      }
+    },
+    "binary_sensor": {
+      "ready_home": {
+        "name": "Ready for home"
+      },
+      "ready_away": {
+        "name": "Ready for away"
+      },
+      "alarm": {
+        "name": "Alarm"
+      },
+      "fault": {
+        "name": "Fault"
+      },
+      "connection": {
+        "name": "Connection to the panel"
+      },
+      "bypassed": {
+        "name": "Bypassed"
+      }
+    },
+    "button": {
+      "reset": {
+        "name": "Reset alarm"
+      }
+    }
+  },
+  "exceptions": {
+    "cannot_connect": {
+      "message": "The panel at {host} does not answer."
+    },
+    "invalid_code": {
+      "message": "Wrong code."
+    },
+    "not_ready": {
+      "message": "The panel is not ready to arm – a detector is open."
+    },
+    "command_failed": {
+      "message": "The panel did not carry out the command ({result})."
+    }
+  }
+}

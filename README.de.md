@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="custom_components/telenot/brand/icon.png" width="128" alt="Telenot integration" />
+</p>
+
 <h1 align="center">Telenot — Home-Assistant-Integration</h1>
 
 <p align="center">
@@ -10,10 +14,10 @@
   <a href="README.md">English</a>
 </p>
 
-> **Stand: in Entwicklung.** Protokollkern und Verbindungsschicht sind fertig: getestet gegen
-> Telegramme einer echten Zentrale und gegen eine simulierte Zentrale über TCP (Neuaufbau,
-> verstummte Zentrale, Befehle mit Quittung, Suchlauf). Entitäten und Einrichtung entstehen
-> gerade. Noch nicht einsatzbereit.
+> **Stand: in Entwicklung, noch nicht veröffentlicht.** Protokoll, Verbindung, Einrichtung mit
+> Suchlauf, Geräte, Entitäten und Optionen sind fertig und gegen Telegramme einer echten Zentrale
+> sowie eine simulierte Zentrale über TCP getestet. Als Nächstes folgt der erste Test an einer
+> echten Zentrale.
 
 ---
 
@@ -29,7 +33,7 @@ Diese Integration spricht direkt mit der Zentrale, verbindet sich unbegrenzt neu
 als **nicht verfügbar**, wenn die Zentrale nicht erreichbar ist, und liest **Namen und
 Meldebereiche der Melder aus der Zentrale** – statt Adressen durch Ausprobieren zu suchen.
 
-## Was du bekommst (geplant für 0.1)
+## Was du bekommst
 
 | Gerät | Entitäten |
 |---|---|
@@ -77,7 +81,7 @@ Gut zu wissen:
 Noch nicht veröffentlicht. Danach: HACS → benutzerdefiniertes Repository `benji2k2/ha_telenot`
 (Kategorie *Integration*) → installieren → Home Assistant neu starten.
 
-## Einrichtung (geplant)
+## Einrichtung
 
 1. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Telenot*.
 2. Host und Port des Wandlers eintragen. Die Integration prüft, ob die Zentrale spricht.
@@ -86,7 +90,18 @@ Noch nicht veröffentlicht. Danach: HACS → benutzerdefiniertes Repository `ben
    werden nur Leseabfragen gesendet.
 4. Bestätigen. Geräte und Entitäten entstehen; den Meldebereich-Geräten Räume zuordnen.
 
-Optionen: Alarmcode, welche Modi den Code verlangen, virtueller Nachtmodus, neuer Suchlauf.
+### Optionen
+
+- **Alarmcode** – leer lassen, um nie nach einem Code zu fragen. Ist ein Code gesetzt, zeigt die
+  Alarm-Karte ein Ziffernfeld.
+- **Code verlangen für** – beliebig aus *extern scharf*, *intern scharf*, *Nacht*, *unscharf*.
+  Standard: nur *extern scharf*. Nicht ausgewählte Aktionen gehen ohne Code. Ein falscher Code
+  erreicht die Zentrale nie.
+- **Zentrale erneut auslesen** – nachdem der Errichter umprogrammiert hat. Nutzt die laufende
+  Verbindung.
+
+Melder bekommen eine Geräteklasse, die aus ihrem Namen abgeleitet wird (Fenster, Bewegung,
+Sabotage …); passt sie nicht, in den Entitätseinstellungen unter *Anzeigen als* ändern.
 
 ## Umstieg von telenot-bridge (MQTT)
 
