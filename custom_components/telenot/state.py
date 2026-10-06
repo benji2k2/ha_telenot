@@ -42,7 +42,6 @@ class ArmState(Enum):
 
     DISARMED = "disarmed"
     ARMED_HOME = "armed_home"
-    ARMED_NIGHT = "armed_night"  # virtual: armed home + night flag
     ARMED_AWAY = "armed_away"
     TRIGGERED = "triggered"
     UNKNOWN = "unknown"
@@ -53,8 +52,6 @@ class PanelState:
 
     def __init__(self) -> None:
         self._bits: dict[int, bool] = {}
-        self.night_flag = False
-        self.night_requested = False  # set before arming home for the night
         self.inputs_seen = False
         self.outputs_seen = False
 
@@ -88,17 +85,13 @@ class PanelState:
             self.inputs_seen = True
         else:
             self.outputs_seen = True
-        changed = {a for a in block.addresses() if self._set(a, bool(block.is_active(a)))}
-        self._update_night_flag()
-        return changed
+        return {a for a in block.addresses() if self._set(a, bool(block.is_active(a)))}
 
     def apply_message(self, message: Message) -> set[int]:
         """A spontaneous message updates the single address it names."""
         if message.extension not in (EXT_INPUTS, EXT_OUTPUTS):
             return set()
-        changed = {message.address} if self._set(message.address, message.active) else set()
-        self._update_night_flag()
-        return changed
+        return {message.address} if self._set(message.address, message.active) else set()
 
     def _set(self, address: int, active: bool) -> bool:
         """Store a bit; True if it is new or changed."""
@@ -106,19 +99,9 @@ class PanelState:
         self._bits[address] = active
         return old != active
 
-    def _update_night_flag(self) -> None:
-        """Night mode is virtual: armed home + flag. A request turns into the flag as soon as
-        the panel reports armed home; away or disarmed end it. A request survives status
-        telegrams that still show the old state right after the command."""
-        if self.is_active(ADDR_ARMED_HOME) and self.night_requested:
-            self.night_flag = True
-            self.night_requested = False
-        elif self.is_active(ADDR_ARMED_AWAY) or self.is_active(ADDR_DISARMED):
-            self.night_flag = False
-
     @property
     def arm_state(self) -> ArmState:
-        """Derived like the ESP bridge: alarm wins, then away, home (night), disarmed."""
+        """Derived like the ESP bridge: alarm wins, then away, home, disarmed."""
         if not self.outputs_seen:
             return ArmState.UNKNOWN
         if self.is_active(ADDR_ALARM):
@@ -126,7 +109,7 @@ class PanelState:
         if self.is_active(ADDR_ARMED_AWAY):
             return ArmState.ARMED_AWAY
         if self.is_active(ADDR_ARMED_HOME):
-            return ArmState.ARMED_NIGHT if self.night_flag else ArmState.ARMED_HOME
+            return ArmState.ARMED_HOME
         if self.is_active(ADDR_DISARMED):
             return ArmState.DISARMED
         return ArmState.UNKNOWN

@@ -63,7 +63,6 @@
       "options": {
         "arm_away": "Extern scharf",
         "arm_home": "Intern scharf",
-        "arm_night": "Nacht",
         "disarm": "Unscharf"
       }
     }

@@ -17,7 +17,7 @@ CONF_CODE: Final = "code"
 CONF_CODE_FOR: Final = "code_for"
 
 # Modes that can be protected by the code. Default as before: only arming away needs it.
-CODE_MODES: Final = ["arm_away", "arm_home", "arm_night", "disarm"]
+CODE_MODES: Final = ["arm_away", "arm_home", "disarm"]
 DEFAULT_CODE_FOR: Final = ["arm_away"]
 
 # Read at runtime (tests shorten them).

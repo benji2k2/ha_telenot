@@ -36,10 +36,9 @@ areas from the panel** instead of making you find addresses by trial and error.
 
 | Device | Entities |
 |---|---|
-| **Telenot complex 400** | Alarm panel (disarmed / armed home / armed away / armed night*), ready for home, ready for away, alarm, fault, battery fault, mains fault, button *reset alarm*, connection (diagnostic) |
+| **Telenot complex 400** | Alarm panel (disarmed / armed home / armed away), ready for home, ready for away, alarm, fault, battery fault, mains fault, button *reset alarm*, connection (diagnostic) |
 | **One device per detection area**, named as in the panel, linked to the panel | *State* of the area, every detector of the area (disabled by default), *bypassed* (diagnostic) |
 
-\* *Armed night* is a virtual mode: the panel is armed home, Home Assistant shows night.
 
 Commands are sent only in the panel's send window and confirmed by the panel; the alarm
 state always comes from the panel, never from the command that was sent. Area 1 only.
@@ -68,6 +67,9 @@ Things to know:
 - While no client acknowledges the panel's telegrams (Home Assistant restarting, converter
   offline), the panel may register a transmission-path fault. That is a fault message, not
   an alarm.
+- **After a restart or reconnect** the integration reads the panel's complete status again
+  before its entities become available, so changes made at the keypad in the meantime show
+  up.
 - Opening the panel housing triggers its tamper contact — work on the wiring only with the
   panel disarmed and, if needed, in installer mode.
 
@@ -94,7 +96,7 @@ Not yet released. Once it is: HACS → custom repository `benji2k2/ha_telenot` (
 
 - **Alarm code** – leave empty to never ask for one. With a code set, the panel card shows a
   keypad.
-- **Require the code for** – any of *arm away*, *arm home*, *arm night*, *disarm*. Default:
+- **Require the code for** – any of *arm away*, *arm home*, *disarm*. Default:
   *arm away* only. Actions not selected work without a code. A wrong code never reaches the
   panel.
 - **Scan the panel again** – after the installer changed the programming. Uses the running

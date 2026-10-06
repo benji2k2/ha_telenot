@@ -1,4 +1,4 @@
-"""State model: arm state, readiness and the virtual night mode."""
+"""State model: arm state and readiness."""
 
 from custom_components.telenot import protocol as p
 from custom_components.telenot.state import (
@@ -52,18 +52,6 @@ def test_away_and_home():
     s = PanelState()
     s.apply_block(outputs(ADDR_ARMED_AWAY))
     assert s.arm_state is ArmState.ARMED_AWAY
-    s.apply_block(outputs(ADDR_ARMED_HOME))
-    assert s.arm_state is ArmState.ARMED_HOME
-
-
-def test_night_flag_shows_night_until_disarmed():
-    s = PanelState()
-    s.night_flag = True
-    s.apply_block(outputs(ADDR_ARMED_HOME))
-    assert s.arm_state is ArmState.ARMED_NIGHT
-    s.apply_block(outputs(ADDR_DISARMED))
-    assert s.arm_state is ArmState.DISARMED
-    assert s.night_flag is False
     s.apply_block(outputs(ADDR_ARMED_HOME))
     assert s.arm_state is ArmState.ARMED_HOME
 

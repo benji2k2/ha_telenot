@@ -38,7 +38,6 @@ async def async_get_config_entry_diagnostics(
             "arm_state": state.arm_state.value,
             "ready_home": state.ready_home,
             "ready_away": state.ready_away,
-            "night_flag": state.night_flag,
         },
         "inventory": {
             "detection_areas": sorted(data.inventory.areas),

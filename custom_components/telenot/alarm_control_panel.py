@@ -11,7 +11,6 @@ from homeassistant.components.alarm_control_panel import (
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import TelenotConfigEntry
 from .client import CommandResult
@@ -30,7 +29,6 @@ from .state import (
 _STATES = {
     ArmState.DISARMED: AlarmControlPanelState.DISARMED,
     ArmState.ARMED_HOME: AlarmControlPanelState.ARMED_HOME,
-    ArmState.ARMED_NIGHT: AlarmControlPanelState.ARMED_NIGHT,
     ArmState.ARMED_AWAY: AlarmControlPanelState.ARMED_AWAY,
     ArmState.TRIGGERED: AlarmControlPanelState.TRIGGERED,
 }
@@ -44,15 +42,13 @@ async def async_setup_entry(
     async_add_entities([TelenotAlarmPanel(entry)])
 
 
-class TelenotAlarmPanel(TelenotEntity, AlarmControlPanelEntity, RestoreEntity):
+class TelenotAlarmPanel(TelenotEntity, AlarmControlPanelEntity):
     """Arm state always comes from the panel, never from the command that was sent."""
 
     _attr_translation_key = "panel"
     _attr_name = None  # the device name ("Telenot complex 400")
     _attr_supported_features = (
-        AlarmControlPanelEntityFeature.ARM_HOME
-        | AlarmControlPanelEntityFeature.ARM_AWAY
-        | AlarmControlPanelEntityFeature.ARM_NIGHT
+        AlarmControlPanelEntityFeature.ARM_HOME | AlarmControlPanelEntityFeature.ARM_AWAY
     )
     # The code is checked here per mode; HA would otherwise demand it for every arm mode.
     _attr_code_arm_required = False
@@ -82,13 +78,6 @@ class TelenotAlarmPanel(TelenotEntity, AlarmControlPanelEntity, RestoreEntity):
         state = self._client.state
         return {"ready_home": state.ready_home, "ready_away": state.ready_away}
 
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        # Night mode is virtual: restore it if HA restarted while armed for the night.
-        last = await self.async_get_last_state()
-        if last is not None and last.state == AlarmControlPanelState.ARMED_NIGHT:
-            self._client.state.night_flag = True
-
     def _check_code(self, mode: str, code: str | None) -> None:
         if self._code and mode in self._code_for and code != self._code:
             raise ServiceValidationError(translation_domain=DOMAIN, translation_key="invalid_code")
@@ -111,12 +100,6 @@ class TelenotAlarmPanel(TelenotEntity, AlarmControlPanelEntity, RestoreEntity):
     async def async_alarm_arm_home(self, code: str | None = None) -> None:
         self._check_code("arm_home", code)
         await self._run(await self._client.arm_home())
-        self.async_write_ha_state()
-
-    async def async_alarm_arm_night(self, code: str | None = None) -> None:
-        self._check_code("arm_night", code)
-        await self._run(await self._client.arm_home(night=True))
-        self.async_write_ha_state()
 
     async def async_alarm_arm_away(self, code: str | None = None) -> None:
         self._check_code("arm_away", code)

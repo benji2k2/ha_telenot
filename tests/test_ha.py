@@ -4,19 +4,29 @@ from __future__ import annotations
 
 import asyncio
 
-from homeassistant.components.alarm_control_panel import AlarmControlPanelState
+from homeassistant.components.alarm_control_panel import (
+    AlarmControlPanelEntityFeature,
+    AlarmControlPanelState,
+)
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST, CONF_PORT, STATE_OFF, STATE_ON, STATE_UNAVAILABLE
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry, mock_restore_cache
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.telenot.const import CONF_CODE, CONF_CODE_FOR, CONF_DETECTORS, DOMAIN
 from custom_components.telenot.diagnostics import async_get_config_entry_diagnostics
-from custom_components.telenot.state import ADDR_ALARM, ADDR_READY_AWAY
+from custom_components.telenot.state import (
+    ADDR_ALARM,
+    ADDR_ARMED_AWAY,
+    ADDR_DISARMED,
+    ADDR_FAULT,
+    ADDR_READY_AWAY,
+    ADDR_READY_HOME,
+)
 
 from .sim_panel import Names, SimPanel
 
@@ -167,6 +177,10 @@ async def test_devices_and_entities(hass: HomeAssistant, entry: MockConfigEntry)
     assert area.via_device_id == panel_dev.id
 
     assert hass.states.get(PANEL).state == AlarmControlPanelState.DISARMED
+    # only what the panel knows: no virtual night mode
+    assert hass.states.get(PANEL).attributes["supported_features"] == (
+        AlarmControlPanelEntityFeature.ARM_HOME | AlarmControlPanelEntityFeature.ARM_AWAY
+    )
     assert hass.states.get("binary_sensor.telenot_complex_400_ready_for_away").state == STATE_ON
     assert (
         hass.states.get("binary_sensor.telenot_complex_400_connection_to_the_panel").state
@@ -209,9 +223,9 @@ async def test_arm_away_needs_code_home_does_not(hass: HomeAssistant, entry, pan
     )
     await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.DISARMED)
     await hass.services.async_call(
-        "alarm_control_panel", "alarm_arm_night", {"entity_id": PANEL}, blocking=True
+        "alarm_control_panel", "alarm_arm_home", {"entity_id": PANEL}, blocking=True
     )
-    await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.ARMED_NIGHT)
+    await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.ARMED_HOME)
 
 
 async def test_not_ready(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
@@ -256,21 +270,40 @@ async def test_unavailable_on_disconnect_and_back(hass: HomeAssistant, entry, pa
     await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.DISARMED, timeout=5)
 
 
-async def test_night_restored_after_restart(hass: HomeAssistant, panel: SimPanel) -> None:
-    from custom_components.telenot.state import ADDR_ARMED_HOME, ADDR_DISARMED
-
-    panel.set(ADDR_DISARMED, False)
-    panel.set(ADDR_ARMED_HOME, True)
-    mock_restore_cache(hass, [State(PANEL, AlarmControlPanelState.ARMED_NIGHT)])
-    e = MockConfigEntry(
-        domain=DOMAIN,
-        data={CONF_HOST: "127.0.0.1", CONF_PORT: panel.port, CONF_DETECTORS: []},
-    )
-    e.add_to_hass(hass)
-    assert await hass.config_entries.async_setup(e.entry_id)
+async def _restart(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    """HA restart as the integration sees it: unload now, set up again later."""
+    assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()
-    assert hass.states.get(PANEL).state == AlarmControlPanelState.ARMED_NIGHT
-    await hass.config_entries.async_unload(e.entry_id)
+
+
+async def _start(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+
+
+async def test_state_changes_while_ha_is_down(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
+    """Whatever happens at the panel during a restart is read back from the full status."""
+    await _restart(hass, entry)
+    panel.set(ADDR_DISARMED, False)
+    panel.set(ADDR_ARMED_AWAY, True)  # armed at the keypad
+    panel.set(ADDR_FAULT, True)
+    panel.set(ADDR_READY_AWAY, False)
+    panel.set(0x0014, True)  # battery fault input
+    panel.set(0x0574, True)  # detection area 5 open
+    await _start(hass, entry)
+    assert hass.states.get(PANEL).state == AlarmControlPanelState.ARMED_AWAY
+    assert hass.states.get("binary_sensor.telenot_complex_400_fault").state == STATE_ON
+    assert hass.states.get("binary_sensor.telenot_complex_400_ready_for_away").state == STATE_OFF
+    assert hass.states.get("binary_sensor.telenot_complex_400_akku_stoerung").state == STATE_ON
+    assert hass.states.get("binary_sensor.fenster_atelier").state == STATE_ON
+    # and back, again while HA is down
+    await _restart(hass, entry)
+    panel.active = {ADDR_DISARMED, ADDR_READY_HOME, ADDR_READY_AWAY}
+    await _start(hass, entry)
+    assert hass.states.get(PANEL).state == AlarmControlPanelState.DISARMED
+    assert hass.states.get("binary_sensor.telenot_complex_400_fault").state == STATE_OFF
+    assert hass.states.get("binary_sensor.telenot_complex_400_akku_stoerung").state == STATE_OFF
+    assert hass.states.get("binary_sensor.fenster_atelier").state == STATE_OFF
 
 
 async def test_options_code(hass: HomeAssistant, entry: MockConfigEntry, panel) -> None:  # noqa: ANN001

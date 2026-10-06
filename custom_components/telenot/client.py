@@ -34,8 +34,6 @@ from .state import (
 
 _LOGGER = logging.getLogger(__name__)
 
-NIGHT_REQUEST_TTL = 60.0  # s a night request waits for the panel to report armed home
-
 
 @dataclass(frozen=True, slots=True)
 class Timing:
@@ -103,7 +101,6 @@ class TelenotClient:
         self._task: asyncio.Task | None = None
         self._jobs: deque[_Job] = deque()
         self._in_flight: _Job | None = None
-        self._night_requested_at: float | None = None
         self._stopping = False
 
     # ───────────────────────── life cycle ─────────────────────────
@@ -245,12 +242,6 @@ class TelenotClient:
         return job.frame
 
     def _check_timeouts(self, now: float) -> None:
-        if (
-            self.state.night_requested
-            and self._night_requested_at is not None
-            and now - self._night_requested_at > NIGHT_REQUEST_TTL
-        ):
-            self.state.night_requested = False  # panel never reported armed home
         job = self._in_flight
         if job is None or now < job.deadline:
             return
@@ -340,23 +331,10 @@ class TelenotClient:
     async def disarm(self) -> CommandResult:
         return await self.send_command(ADDR_DISARMED, p.ART_DISARM)
 
-    async def arm_home(self, night: bool = False) -> CommandResult:
-        """Arm home; ``night`` shows it as armed night (virtual mode)."""
+    async def arm_home(self) -> CommandResult:
         if self.state.ready_home is False and not self.state.is_active(ADDR_ARMED_HOME):
             return CommandResult.NOT_READY
-        self.state.night_requested = night
-        self._night_requested_at = time.monotonic() if night else None
-        if not night:
-            self.state.night_flag = False
-        result = await self.send_command(ADDR_ARMED_HOME, p.ART_ARM_HOME)
-        if result is not CommandResult.OK:
-            self.state.night_requested = False
-        elif self.state.is_active(ADDR_ARMED_HOME):
-            # already armed home (e.g. home → night): no new status edge will come
-            self.state.night_flag = night
-            self.state.night_requested = False
-            self._notify(set())
-        return result
+        return await self.send_command(ADDR_ARMED_HOME, p.ART_ARM_HOME)
 
     async def arm_away(self) -> CommandResult:
         if self.state.ready_away is False:

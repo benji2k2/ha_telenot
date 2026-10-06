@@ -37,10 +37,9 @@ Meldebereiche der Melder aus der Zentrale** – statt Adressen durch Ausprobiere
 
 | Gerät | Entitäten |
 |---|---|
-| **Telenot complex 400** | Alarmpanel (unscharf / intern scharf / extern scharf / Nacht*), intern bereit, extern bereit, Alarm, Störung, Störung Akku, Störung Netz, Knopf *Alarm zurücksetzen*, Verbindung (Diagnose) |
+| **Telenot complex 400** | Alarmpanel (unscharf / intern scharf / extern scharf), intern bereit, extern bereit, Alarm, Störung, Störung Akku, Störung Netz, Knopf *Alarm zurücksetzen*, Verbindung (Diagnose) |
 | **Je Meldebereich ein Gerät**, benannt wie in der Zentrale, verbunden mit der Zentrale | *Zustand* des Bereichs, jeder Melder des Bereichs (standardmäßig deaktiviert), *gesperrt* (Diagnose) |
 
-\* *Nacht* ist ein virtueller Modus: Die Zentrale ist intern scharf, Home Assistant zeigt Nacht.
 
 Befehle gehen nur im Sendefenster der Zentrale raus und werden von ihr quittiert; der
 Alarmzustand kommt immer von der Zentrale, nie aus dem gesendeten Befehl. Nur Sicherungsbereich 1.
@@ -68,6 +67,9 @@ Gut zu wissen:
 - Solange niemand die Telegramme der Zentrale quittiert (Home Assistant startet neu, Wandler
   weg), kann die Zentrale eine Störung des Übertragungswegs vermerken. Das ist eine
   Störungsmeldung, kein Alarm.
+- **Nach einem Neustart oder Verbindungsabbruch** liest die Integration den vollständigen
+  Zustand der Zentrale neu, bevor die Entitäten verfügbar werden – Änderungen am Bedienteil
+  in der Zwischenzeit kommen also an.
 - Das Öffnen des Zentralengehäuses löst den Sabotagekontakt aus – an der Verkabelung nur bei
   unscharfer Anlage und ggf. im Errichtermodus arbeiten.
 
@@ -94,7 +96,7 @@ Noch nicht veröffentlicht. Danach: HACS → benutzerdefiniertes Repository `ben
 
 - **Alarmcode** – leer lassen, um nie nach einem Code zu fragen. Ist ein Code gesetzt, zeigt die
   Alarm-Karte ein Ziffernfeld.
-- **Code verlangen für** – beliebig aus *extern scharf*, *intern scharf*, *Nacht*, *unscharf*.
+- **Code verlangen für** – beliebig aus *extern scharf*, *intern scharf*, *unscharf*.
   Standard: nur *extern scharf*. Nicht ausgewählte Aktionen gehen ohne Code. Ein falscher Code
   erreicht die Zentrale nie.
 - **Zentrale erneut auslesen** – nachdem der Errichter umprogrammiert hat. Nutzt die laufende

@@ -126,18 +126,6 @@ async def test_not_ready_is_refused_locally(client, panel):
     assert len(panel.commands) == before
 
 
-async def test_night_mode(client, panel):
-    assert await client.arm_home(night=True) is CommandResult.OK
-    await until(lambda: client.state.arm_state is ArmState.ARMED_NIGHT)
-    assert await client.disarm() is CommandResult.OK
-    await until(lambda: client.state.arm_state is ArmState.DISARMED)
-    assert await client.arm_home() is CommandResult.OK
-    await until(lambda: client.state.arm_state is ArmState.ARMED_HOME)
-    # home → night without a new status edge
-    assert await client.arm_home(night=True) is CommandResult.OK
-    assert client.state.arm_state is ArmState.ARMED_NIGHT
-
-
 async def test_states_keep_flowing_after_reconnect(client, panel):
     """Regression: telenot-bridge stopped processing data after every reconnect."""
     changes: list[set[int]] = []
