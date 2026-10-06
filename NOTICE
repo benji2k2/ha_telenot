@@ -1,0 +1,19 @@
+Telenot integration for Home Assistant
+Copyright 2026 benji2k2
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+The implementation of the Telenot GMS protocol (frame layout, record types, addresses,
+command and query telegrams, text decoding) is based on knowledge from:
+
+  telenot-bridge, Copyright Carsten Hensiek, Apache License 2.0
+  https://github.com/carhensi/telenot-bridge
+
+  telenot-esp-bridge, Copyright Carsten Hensiek, Apache License 2.0
+  https://github.com/carhensi/telenot-esp-bridge
+
+Reference telegrams used in the tests are taken from telenot-esp-bridge
+(crates/telenot-protocol/tests/reference_telegrams.rs).
+
+Telenot, complex and compasX are trademarks of TELENOT ELECTRONIC GmbH. This project is not
+affiliated with or endorsed by TELENOT ELECTRONIC GmbH.

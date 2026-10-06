@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Never commit credentials or captures of a real panel (names, addresses)
+.env
+captures/
+*mitschnitt*
+
+# OS
+.DS_Store
