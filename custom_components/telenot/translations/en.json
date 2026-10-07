@@ -121,7 +121,8 @@
               "shutdown": "Shutdown",
               "reset": "Reset",
               "restart": "Restart",
-              "other": "Other"
+              "other": "Other",
+              "command_failed": "Command failed"
             }
           },
           "active": {
@@ -141,6 +142,12 @@
           },
           "panel_time": {
             "name": "Panel time"
+          },
+          "command": {
+            "name": "Command"
+          },
+          "reason": {
+            "name": "Reason"
           }
         }
       }

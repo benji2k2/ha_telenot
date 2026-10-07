@@ -317,6 +317,28 @@ async def test_event_log_entity(hass: HomeAssistant, entry, panel) -> None:  # n
     await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.DISARMED)
 
 
+async def test_failed_command_is_an_event(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
+    event_id = "event.telenot_complex_400_event_log"
+    panel.set(ADDR_READY_AWAY, False)
+    await until(
+        lambda: (
+            hass.states.get("binary_sensor.telenot_complex_400_ready_for_away").state == STATE_OFF
+        )
+    )
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            "alarm_control_panel",
+            "alarm_arm_away",
+            {"entity_id": PANEL, "code": "1234"},
+            blocking=True,
+        )
+    attrs = hass.states.get(event_id).attributes
+    assert attrs["event_type"] == "command_failed"
+    assert attrs["command"] == "arm_away"
+    assert attrs["reason"] == "not_ready"
+    assert panel.commands == []
+
+
 async def test_unavailable_on_disconnect_and_back(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
     panel.silent = True
     await until(lambda: hass.states.get(PANEL).state == STATE_UNAVAILABLE)

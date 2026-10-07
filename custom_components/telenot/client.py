@@ -17,6 +17,8 @@ Rules (see protocol.py):
   embedded error record 0x11 means rejected), retried on NAK or timeout, and never resent
   after a reconnect.
 - Event log entries (message records) go to event listeners; they never change the state.
+- Commands that do not end with OK (not ready, rejected, no answer, not connected) go to
+  failure listeners at once, so a warning need not wait for a timeout.
 - The connection is rebuilt without limit (backoff), and also when the panel stays silent
   although TCP is up. Everything known about the panel is forgotten on every disconnect.
 """
@@ -111,6 +113,7 @@ class TelenotClient:
         self.stats = {"connects": 0, "frames": 0, "acks_sent": 0, "frame_errors": 0}
         self._listeners: list[Callable[[set[int]], None]] = []
         self._event_listeners: list[Callable[[p.PanelEvent], None]] = []
+        self._failure_listeners: list[Callable[[str, CommandResult], None]] = []
         self._writer: asyncio.StreamWriter | None = None
         self._task: asyncio.Task | None = None
         self._jobs: deque[_Job] = deque()
@@ -133,6 +136,22 @@ class TelenotClient:
         """Callback for every event log entry of the panel."""
         self._event_listeners.append(callback)
         return lambda: self._event_listeners.remove(callback)
+
+    def add_failure_listener(
+        self, callback: Callable[[str, CommandResult], None]
+    ) -> Callable[[], None]:
+        """Callback (command, result) whenever a command does not end with OK."""
+        self._failure_listeners.append(callback)
+        return lambda: self._failure_listeners.remove(callback)
+
+    def _report(self, command: str, result: CommandResult) -> CommandResult:
+        if result is not CommandResult.OK:
+            for callback in list(self._failure_listeners):
+                try:
+                    callback(command, result)
+                except Exception:
+                    _LOGGER.exception("Failure listener failed")
+        return result
 
     def start(self) -> None:
         self._stopping = False
@@ -396,20 +415,20 @@ class TelenotClient:
         return result  # type: ignore[return-value]
 
     async def disarm(self) -> CommandResult:
-        return await self.send_command(ADDR_DISARMED, p.ART_DISARM)
+        return self._report("disarm", await self.send_command(ADDR_DISARMED, p.ART_DISARM))
 
     async def arm_home(self) -> CommandResult:
         if self.state.ready_home is False and not self.state.is_active(ADDR_ARMED_HOME):
-            return CommandResult.NOT_READY
-        return await self.send_command(ADDR_ARMED_HOME, p.ART_ARM_HOME)
+            return self._report("arm_home", CommandResult.NOT_READY)
+        return self._report("arm_home", await self.send_command(ADDR_ARMED_HOME, p.ART_ARM_HOME))
 
     async def arm_away(self) -> CommandResult:
         if self.state.ready_away is False:
-            return CommandResult.NOT_READY
-        return await self.send_command(ADDR_ARMED_AWAY, p.ART_ARM_AWAY)
+            return self._report("arm_away", CommandResult.NOT_READY)
+        return self._report("arm_away", await self.send_command(ADDR_ARMED_AWAY, p.ART_ARM_AWAY))
 
     async def reset(self) -> CommandResult:
-        return await self.send_command(ADDR_ALARM, p.ART_RESET)
+        return self._report("reset", await self.send_command(ADDR_ALARM, p.ART_RESET))
 
     # ───────────────────────── scan ─────────────────────────
 

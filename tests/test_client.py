@@ -122,6 +122,18 @@ async def test_unanswered_command_is_retried_then_times_out(client, panel):
         task.cancel()
 
 
+async def test_failures_are_reported_at_once(client, panel):
+    failures: list[tuple[str, CommandResult]] = []
+    client.add_failure_listener(lambda command, result: failures.append((command, result)))
+    assert await client.disarm() is CommandResult.OK
+    panel.set(ADDR_READY_AWAY, False)
+    await until(lambda: client.state.ready_away is False)
+    assert await client.arm_away() is CommandResult.NOT_READY
+    panel.reject_next_command = True
+    assert await client.arm_home() is CommandResult.REJECTED
+    assert failures == [("arm_away", CommandResult.NOT_READY), ("arm_home", CommandResult.REJECTED)]
+
+
 async def test_not_ready_is_refused_locally(client, panel):
     panel.set(ADDR_READY_AWAY, False)
     await until(lambda: client.state.ready_away is False)

@@ -37,7 +37,7 @@ areas from the panel** instead of making you find addresses by trial and error.
 
 | Device | Entities |
 |---|---|
-| **Telenot complex 400** | Alarm panel (disarmed / armed home / armed away), ready for home, ready for away, alarm, fault, battery fault, mains fault, button *reset alarm*, *event log* (event entity: armed, disarmed, alarms, faults with source and panel time), connection (diagnostic) |
+| **Telenot complex 400** | Alarm panel (disarmed / armed home / armed away), ready for home, ready for away, alarm, fault, battery fault, mains fault, button *reset alarm*, *event log* (event entity: armed, disarmed, alarms, faults with source and panel time; commands from Home Assistant that failed, with the reason), connection (diagnostic) |
 | **One device per detection area**, named as in the panel, linked to the panel | *State* of the area, every detector of the area (disabled by default), *bypassed* (diagnostic) |
 
 Keypad inputs (four per keypad from address 0x00B0) are named by their role: tamper, display
