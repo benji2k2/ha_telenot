@@ -40,6 +40,9 @@ Meldebereiche der Melder aus der Zentrale** – statt Adressen durch Ausprobiere
 | **Telenot complex 400** | Alarmpanel (unscharf / intern scharf / extern scharf), intern bereit, extern bereit, Alarm, Störung, Störung Akku, Störung Netz, Knopf *Alarm zurücksetzen*, *Ereignisprotokoll* (Ereignis-Entität: scharf, unscharf, Alarme, Störungen mit Quelle und Zeit der Zentrale), Verbindung (Diagnose) |
 | **Je Meldebereich ein Gerät**, benannt wie in der Zentrale, verbunden mit der Zentrale | *Zustand* des Bereichs, jeder Melder des Bereichs (standardmäßig deaktiviert), *gesperrt* (Diagnose) |
 
+Bedienteil-Eingänge (vier je Bedienteil ab Adresse 0x00B0) heißen nach ihrer Rolle: Deckelkontakt,
+Deckelkontakt Anzeigeteil, keine Antwort, freie Taste / Bedrohung. Standardmäßig deaktiviert.
+
 
 Befehle gehen sofort raus (die Zentrale nimmt sie auch außerhalb ihres ~3,4-s-Abfragetakts
 an), außer die Leitung war gerade belegt, und werden von ihr quittiert; ohne Quittung folgt

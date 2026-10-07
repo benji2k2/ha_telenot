@@ -92,3 +92,29 @@ def test_detection_area_addresses():
     assert detection_area_address(1) == 0x0570
     assert detection_area_address(12) == 0x057B
     assert bypassed_address(5) == 0x05F4
+
+
+def test_keypad_inputs_get_their_role():
+    """Every keypad has four inputs named after the keypad; the role follows the position."""
+    from custom_components.telenot.inventory import build
+
+    stored = [
+        {"address": 0x00B4 + i, "kind": "input", "name": "Keypad 1", "detection_area": 0}
+        for i in range(3)
+    ] + [
+        {
+            "address": 0x00B7,
+            "kind": "input",
+            "name": "Keypad 1 BT Freip. Taste",
+            "detection_area": 0,
+        },
+        {"address": 0x0003, "kind": "input", "name": "IR- Hall", "detection_area": 0},
+    ]
+    points = {pt.address: pt for pt in build(stored).system_points}
+    assert points[0x00B4].name == "Keypad 1 – Deckelkontakt"
+    assert points[0x00B4].device_class == "tamper"
+    assert points[0x00B6].name == "Keypad 1 – Keine Antwort"
+    assert points[0x00B6].device_class == "problem"
+    assert points[0x00B7].name == "Keypad 1 – Freie Taste / Bedrohung"
+    assert points[0x00B7].device_class is None
+    assert points[0x0003].name == "IR- Hall" and points[0x0003].device_class is None

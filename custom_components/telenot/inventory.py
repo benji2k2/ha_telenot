@@ -15,6 +15,17 @@ from .state import ADDR_AREA_BYPASSED, ADDR_DETECTION_AREA
 
 MAX_DETECTION_AREAS = 128
 
+# Keypads ("Bedienteile") occupy four inputs each from 0x00B0 on (keypad n at 0x00B0 + 4 n).
+# The panel names all four after the keypad; their role follows from the position.
+ADDR_KEYPADS = 0x00B0
+MAX_KEYPADS = 16
+KEYPAD_ROLES: list[tuple[str, str | None]] = [
+    ("Deckelkontakt", "tamper"),
+    ("Deckelkontakt Anzeigeteil", "tamper"),
+    ("Keine Antwort", "problem"),
+    ("Freie Taste / Bedrohung", None),
+]
+
 
 @dataclass(frozen=True, slots=True)
 class Point:
@@ -23,6 +34,7 @@ class Point:
     address: int
     name: str
     detection_area: int
+    device_class: str | None = None  # known from the address; else guessed from the name
 
 
 @dataclass(slots=True)
@@ -46,6 +58,10 @@ class Inventory:
     areas: dict[int, DetectionArea] = field(default_factory=dict)
     system_points: list[Point] = field(default_factory=list)  # detection area 0 or unknown
     names: dict[int, str] = field(default_factory=dict)  # every named address, for events
+
+
+def is_keypad_input(address: int) -> bool:
+    return 0 <= address - ADDR_KEYPADS < 4 * MAX_KEYPADS
 
 
 def clean_name(name: str | None) -> str:
@@ -88,7 +104,12 @@ def build(stored: list[dict]) -> Inventory:
             area.bypassed_known = True
         if item["kind"] != "input":
             continue
-        point = Point(address, item["name"] or f"0x{address:04X}", item["detection_area"] or 0)
+        name, device_class = item["name"] or f"0x{address:04X}", None
+        if is_keypad_input(address):
+            role, device_class = KEYPAD_ROLES[(address - ADDR_KEYPADS) % 4]
+            keypad = re.sub(r"\s*BT Freip\. Taste$", "", name)
+            name = f"{keypad} – {role}"
+        point = Point(address, name, item["detection_area"] or 0, device_class)
         area = inventory.areas.get(point.detection_area)
         (area.points if area else inventory.system_points).append(point)
     return inventory

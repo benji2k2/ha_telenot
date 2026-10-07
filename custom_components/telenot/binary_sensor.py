@@ -10,7 +10,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import TelenotConfigEntry
 from .entity import TelenotEntity, area_device, panel_device
-from .inventory import Point, guess_device_class
+from .inventory import Point, guess_device_class, is_keypad_input
 from .state import ADDR_ALARM, ADDR_FAULT, ADDR_READY_AWAY, ADDR_READY_HOME
 
 # Panel status bits: translation key, address, device class.
@@ -105,14 +105,17 @@ class TelenotPointSensor(TelenotBitSensor):
         *,
         system: bool = False,
     ) -> None:
-        device_class = guess_device_class(point.name)
+        device_class = point.device_class or guess_device_class(point.name)
         super().__init__(
             entry,
             f"{point.address:04x}",
             point.address,
             device,
             device_class,
-            enabled=system and device_class in _ENABLED_SYSTEM_CLASSES,
+            # Keypad inputs stay off: an absent keypad may report "no answer" for good.
+            enabled=system
+            and device_class in _ENABLED_SYSTEM_CLASSES
+            and not is_keypad_input(point.address),
         )
         self._attr_name = point.name
         self._attr_extra_state_attributes = {
