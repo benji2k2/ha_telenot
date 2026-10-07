@@ -59,6 +59,7 @@ class Timing:
     immediate_commands: bool = True  # first attempt without waiting for the send window
     quiet_before_send: float = 0.4  # s since the last frame before sending immediately
     quiet_wait_max: float = 1.5  # s to wait for that quiet moment, else the send window
+    send_timeout: float = 5.0  # a write that does not drain in time means a dead socket
 
 
 class CommandResult(Enum):
@@ -242,7 +243,11 @@ class TelenotClient:
         if data == p.CONF_ACK:
             self.stats["acks_sent"] += 1
         self._writer.write(data)
-        await self._writer.drain()
+        try:
+            async with asyncio.timeout(self.timing.send_timeout):
+                await self._writer.drain()
+        except TimeoutError as err:
+            raise ConnectionError("send stalled") from err
 
     def _notify_event(self, event: p.PanelEvent) -> None:
         _LOGGER.debug("Panel event %s", event)

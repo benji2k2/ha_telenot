@@ -62,10 +62,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: TelenotConfigEntry) -> b
         model=MODEL,
         name=f"Telenot {MODEL}",
     )
-    entry.runtime_data = TelenotData(client, build(entry.data.get(CONF_DETECTORS, [])), panel.id)
+    inventory = build(entry.data.get(CONF_DETECTORS, []))
+    _remove_stale_devices(hass, entry, inventory)
+    entry.runtime_data = TelenotData(client, inventory, panel.id)
     entry.async_on_unload(client.stop)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
+
+
+def _remove_stale_devices(
+    hass: HomeAssistant, entry: TelenotConfigEntry, inventory: Inventory
+) -> None:
+    """Detection areas that a new scan no longer reports lose their device (and entities)."""
+    keep = {entry.entry_id} | {f"{entry.entry_id}_mb{number}" for number in inventory.areas}
+    registry = dr.async_get(hass)
+    for device in dr.async_entries_for_config_entry(registry, entry.entry_id):
+        if not any(domain == DOMAIN and ident in keep for domain, ident in device.identifiers):
+            registry.async_update_device(device.id, remove_config_entry_id=entry.entry_id)
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: TelenotConfigEntry) -> bool:

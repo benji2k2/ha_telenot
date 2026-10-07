@@ -201,6 +201,22 @@ async def test_devices_and_entities(hass: HomeAssistant, entry: MockConfigEntry)
     assert reg.async_get_entity_id("binary_sensor", DOMAIN, f"{entry.entry_id}_mb5_bypassed")
 
 
+async def test_rescan_without_an_area_removes_its_device(
+    hass: HomeAssistant, entry: MockConfigEntry
+) -> None:
+    reg = dr.async_get(hass)
+    area = reg.async_get_device(identifiers={(DOMAIN, f"{entry.entry_id}_mb5")})
+    assert area is not None
+    detectors = [d for d in entry.data[CONF_DETECTORS] if d["address"] not in (0x0574, 0x05F4)]
+    detectors = [d for d in detectors if d["detection_area"] != 5]
+    hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_DETECTORS: detectors})
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert reg.async_get_device(identifiers={(DOMAIN, f"{entry.entry_id}_mb5")}) is None
+    assert reg.async_get_device(identifiers={(DOMAIN, entry.entry_id)}) is not None
+    assert hass.states.get("binary_sensor.fenster_atelier") is None
+
+
 async def test_arm_away_needs_code_home_does_not(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
     with pytest.raises(ServiceValidationError):
         await hass.services.async_call(
