@@ -56,14 +56,22 @@ def test_away_and_home():
     assert s.arm_state is ArmState.ARMED_HOME
 
 
-def test_changed_addresses_and_spontaneous_message():
+def test_changed_addresses():
     s = PanelState()
     first = s.apply_block(outputs(ADDR_DISARMED))
     assert ADDR_DISARMED in first and len(first) == 256  # everything is new
     assert s.apply_block(outputs(ADDR_DISARMED)) == set()
-    changed = s.apply_message(p.Message(0, ADDR_ALARM, p.EXT_OUTPUTS, 0x22))
-    assert changed == {ADDR_ALARM}
-    assert s.arm_state is ArmState.TRIGGERED
+
+
+def test_event_log_entries_do_not_change_the_state():
+    """The panel's echo of a GMS "disarm": address 0x0530, code 0xE1 (bit 0x80 set)."""
+    s = PanelState()
+    s.apply_block(outputs(ADDR_DISARMED))
+    message = bytes((0x05, p.REC_MESSAGE, 0x00, 0x05, 0x30, 0x01, 0xE1))
+    frame = p.Frame(bytes((0x73, 0x02)) + message, b"")
+    assert s.apply_frame(frame) == set()
+    assert s.arm_state is ArmState.DISARMED
+    assert frame.event() == p.PanelEvent(0x0530, 0x01, 0xE1, None, None)
 
 
 def test_occupancy_answers_are_not_states():

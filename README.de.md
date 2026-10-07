@@ -37,12 +37,14 @@ Meldebereiche der Melder aus der Zentrale** – statt Adressen durch Ausprobiere
 
 | Gerät | Entitäten |
 |---|---|
-| **Telenot complex 400** | Alarmpanel (unscharf / intern scharf / extern scharf), intern bereit, extern bereit, Alarm, Störung, Störung Akku, Störung Netz, Knopf *Alarm zurücksetzen*, Verbindung (Diagnose) |
+| **Telenot complex 400** | Alarmpanel (unscharf / intern scharf / extern scharf), intern bereit, extern bereit, Alarm, Störung, Störung Akku, Störung Netz, Knopf *Alarm zurücksetzen*, *Ereignisprotokoll* (Ereignis-Entität: scharf, unscharf, Alarme, Störungen mit Quelle und Zeit der Zentrale), Verbindung (Diagnose) |
 | **Je Meldebereich ein Gerät**, benannt wie in der Zentrale, verbunden mit der Zentrale | *Zustand* des Bereichs, jeder Melder des Bereichs (standardmäßig deaktiviert), *gesperrt* (Diagnose) |
 
 
-Befehle gehen nur im Sendefenster der Zentrale raus und werden von ihr quittiert; der
-Alarmzustand kommt immer von der Zentrale, nie aus dem gesendeten Befehl. Nur Sicherungsbereich 1.
+Befehle gehen sofort raus (die Zentrale nimmt sie auch außerhalb ihres ~3,4-s-Abfragetakts
+an), außer die Leitung war gerade belegt, und werden von ihr quittiert; ohne Quittung folgt
+eine Wiederholung im Sendefenster. Der Alarmzustand kommt immer aus den Statustelegrammen der
+Zentrale, nie aus dem gesendeten Befehl oder aus Protokolleinträgen. Nur Sicherungsbereich 1.
 
 ## Hardware
 
@@ -65,8 +67,8 @@ Gut zu wissen:
   sind **am Draht nicht abgesichert**: Wer an das Kabel oder den TCP-Port des Wandlers kommt,
   kann die Anlage unscharf schalten. Zugriff auf den Wandler im Netz einschränken.
 - Solange niemand die Telegramme der Zentrale quittiert (Home Assistant startet neu, Wandler
-  weg), kann die Zentrale eine Störung des Übertragungswegs vermerken. Das ist eine
-  Störungsmeldung, kein Alarm.
+  weg), arbeitet die Zentrale selbständig weiter. Im Test an einer complex 400 blieben zwei
+  Minuten ohne Quittung folgenlos: kein Störungsbit, nichts am Bedienteil.
 - **Nach einem Neustart oder Verbindungsabbruch** liest die Integration den vollständigen
   Zustand der Zentrale neu, bevor die Entitäten verfügbar werden – Änderungen am Bedienteil
   in der Zwischenzeit kommen also an.

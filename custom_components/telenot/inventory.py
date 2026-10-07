@@ -45,6 +45,7 @@ class DetectionArea:
 class Inventory:
     areas: dict[int, DetectionArea] = field(default_factory=dict)
     system_points: list[Point] = field(default_factory=list)  # detection area 0 or unknown
+    names: dict[int, str] = field(default_factory=dict)  # every named address, for events
 
 
 def clean_name(name: str | None) -> str:
@@ -69,6 +70,7 @@ def to_storage(detectors: list[Detector]) -> list[dict]:
 def build(stored: list[dict]) -> Inventory:
     """Config entry data → detection areas with their detectors."""
     inventory = Inventory()
+    inventory.names = {item["address"]: item["name"] for item in stored if item["name"]}
     for item in stored:
         address = item["address"]
         offset = address - ADDR_DETECTION_AREA

@@ -97,6 +97,53 @@
       "reset": {
         "name": "Alarm zurücksetzen"
       }
+    },
+    "event": {
+      "event_log": {
+        "name": "Ereignisprotokoll",
+        "state_attributes": {
+          "event_type": {
+            "name": "Ereignis",
+            "state": {
+              "armed_away": "Extern scharf",
+              "armed_home": "Intern scharf",
+              "disarmed": "Unscharf",
+              "fire": "Brand",
+              "hold_up": "Überfall",
+              "intrusion": "Einbruch",
+              "tamper": "Sabotage",
+              "fault": "Störung",
+              "mains_fault": "Störung Netz",
+              "battery_fault": "Störung Akku",
+              "transmission_fault": "Störung Übertragungsweg",
+              "technical": "Technische Meldung",
+              "technical_alarm": "Technikalarm",
+              "shutdown": "Abschaltung",
+              "reset": "Rücksetzen",
+              "restart": "Neustart",
+              "other": "Sonstiges"
+            }
+          },
+          "active": {
+            "name": "Aktiv"
+          },
+          "address": {
+            "name": "Adresse"
+          },
+          "name": {
+            "name": "Name"
+          },
+          "code": {
+            "name": "Meldungsart"
+          },
+          "source": {
+            "name": "Quelle"
+          },
+          "panel_time": {
+            "name": "Zeit der Zentrale"
+          }
+        }
+      }
     }
   },
   "exceptions": {

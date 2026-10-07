@@ -14,6 +14,8 @@ from custom_components.telenot.state import ADDR_ARMED_HOME, ADDR_DISARMED, ADDR
 
 from .sim_panel import Names, SimPanel
 
+ORIGINAL_DECODER = p.FrameDecoder
+
 _spec = importlib.util.spec_from_file_location(
     "probe", Path(__file__).resolve().parents[1] / "tools" / "probe.py"
 )
@@ -62,6 +64,20 @@ async def test_gap_reports_what_changed(panel: SimPanel) -> None:
     assert all(f == p.CONF_ACK for f in panel.received)
 
 
+async def test_frame_errors_are_logged_with_raw_bytes(panel: SimPanel) -> None:
+    async def garbage() -> None:
+        await asyncio.sleep(0.3)
+        for writer in panel._writers:  # noqa: SLF001
+            writer.write(bytes.fromhex("6805056800"))  # broken header
+
+    task = asyncio.create_task(garbage())
+    rc, lines = await _run(panel, "--duration", "0.8")
+    await task
+    assert rc == 0
+    assert any("frame error" in line and "6805056800" in line for line in lines)
+    assert p.FrameDecoder is ORIGINAL_DECODER  # restored after the run
+
+
 async def test_command_needs_confirm(panel: SimPanel) -> None:
     rc, lines = await _run(panel, "--command", "arm_home")
     assert rc == 2
@@ -70,6 +86,7 @@ async def test_command_needs_confirm(panel: SimPanel) -> None:
     assert rc == 0
     assert len(panel.commands) == 1
     assert ADDR_ARMED_HOME in panel.active and ADDR_DISARMED not in panel.active
+    assert any("event armed_home: 0x0531 armed home" in line and "GMS" in line for line in lines)
 
 
 async def test_scan_writes_json(panel: SimPanel, tmp_path: Path) -> None:

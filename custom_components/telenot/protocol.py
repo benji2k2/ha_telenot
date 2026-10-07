@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 
 START = 0x68
@@ -209,6 +210,34 @@ class Record:
             return None
         return decode_text(self.payload)
 
+    def as_datetime(self) -> datetime | None:
+        """Record 0x50: panel clock, bytes year (low, high as two decimal pairs), month, day,
+        hour, minute, second – e.g. 1a 14 0a 07 08 1c 2c = 2026-10-07 08:28:44."""
+        p = self.payload
+        if self.type != REC_DATETIME or len(p) < 7:
+            return None
+        try:
+            return datetime(p[1] * 100 + p[0], p[2], p[3], p[4], p[5], p[6])
+        except ValueError:
+            return None
+
+
+@dataclass(frozen=True, slots=True)
+class PanelEvent:
+    """An entry of the panel's event log, sent next to the status telegrams.
+
+    Seen on 2026-10-07 after every GMS command: a message record (address and code of the
+    command, extension 0x01), the panel time, the source text ("GMS") and the panel ident.
+    The message's address and code describe the event, not a status bit – the status comes
+    from the block telegrams only.
+    """
+
+    address: int
+    extension: int
+    art: int
+    time: datetime | None
+    source: str | None
+
 
 @dataclass(frozen=True, slots=True)
 class Frame:
@@ -234,6 +263,20 @@ class Frame:
         if low == 0:
             return Function.SEND_NORM if c & 0x40 else Function.CONFIRM_ACK
         return Function.OTHER
+
+    def event(self) -> PanelEvent | None:
+        """The event log entry in this frame, if it carries a message record."""
+        message = time = source = None
+        for record in self.records():
+            if message is None and (m := record.as_message()) is not None:
+                message = m
+            elif time is None and (t := record.as_datetime()) is not None:
+                time = t
+            elif source is None and (text := record.as_text()) is not None:
+                source = text.strip() or None
+        if message is None:
+            return None
+        return PanelEvent(message.address, message.extension, message.art, time, source)
 
     def records(self) -> Iterator[Record]:
         """Records from byte 2 of the user data on; stops at a truncated record."""

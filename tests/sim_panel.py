@@ -1,8 +1,10 @@
 """Simulated complex 400 behind a serial-to-TCP converter, for tests.
 
-Behaves like the captures: polls with SEND_NORM, sends the input and output status telegrams
-every few polls, confirms commands and answers occupancy and text queries. Test hooks can
-drop the connection, fall silent, swallow frames or reject commands.
+Behaves like the captures: once per cycle a burst of SEND_NORM, input status, SEND_NORM,
+output status (the real panel: every ~3.4 s), quiet in between. Confirms commands at any
+time, not only in the send window, followed by an event log entry like the real panel, and
+answers occupancy and text queries. Test hooks can drop the connection, fall silent, swallow
+frames or reject commands.
 """
 
 from __future__ import annotations
@@ -31,6 +33,16 @@ def record(record_type: int, payload: bytes) -> bytes:
     return bytes((len(payload), record_type)) + payload
 
 
+def event_log(address: int, art: int, source: str = "GMS") -> bytes:
+    """Event log entry as the panel sends it after a command (2026-10-07): message record with
+    extension 0x01, panel time, source text and the panel ident (zeroed here)."""
+    message = record(p.REC_MESSAGE, bytes((0x00, address >> 8, address & 0xFF, 0x01, art)))
+    when = record(p.REC_DATETIME, bytes((26, 20, 10, 7, 8, 28, 44)))
+    text = record(p.REC_TEXT, source.encode("latin-1").ljust(16))
+    ident = record(p.REC_IDENT, bytes(6))
+    return ndat(message, when, text, ident)
+
+
 def block(base: int, extension: int, active: set[int], length: int) -> bytes:
     status = bytearray([0xFF] * length)
     for address in active:
@@ -49,10 +61,9 @@ class Names:
 
 
 class SimPanel:
-    def __init__(self, names: Names | None = None, poll_interval: float = 0.02) -> None:
+    def __init__(self, names: Names | None = None, cycle: float = 0.05) -> None:
         self.names = names or Names()
-        self.poll_interval = poll_interval
-        self.status_every = 3  # polls between status telegrams
+        self.cycle = cycle
         self.active: set[int] = {ADDR_DISARMED, ADDR_READY_HOME, ADDR_READY_AWAY}
         self.received: list[bytes] = []
         self.commands: list[bytes] = []
@@ -63,6 +74,7 @@ class SimPanel:
         self.swallow: set[bytes] = set()  # frames to ignore once each
         self.reject_next_command = False
         self.nak_next_command = False
+        self.echo_commands = True  # event log entry after every accepted command
         self._server: asyncio.base_events.Server | None = None
         self._writers: list[asyncio.StreamWriter] = []
         self.port = 0
@@ -102,19 +114,22 @@ class SimPanel:
         self._writers.append(writer)
         self.connections += 1
         decoder = p.FrameDecoder()
-        polls = 0
+        loop = asyncio.get_running_loop()
+        next_burst = loop.time()
         try:
             while not writer.is_closing():
-                if not self.silent:
-                    polls += 1
-                    if polls % self.status_every == 0:
-                        for frame in self.status_frames():
+                if loop.time() >= next_burst:
+                    if not self.silent:
+                        inputs, outputs = self.status_frames()
+                        for frame in (SEND_NORM, inputs, SEND_NORM, outputs):
                             writer.write(frame)
-                            self.status_sent += 1
-                    writer.write(SEND_NORM)
-                    await writer.drain()
+                        self.status_sent += 2
+                        await writer.drain()
+                    next_burst = loop.time() + self.cycle
                 try:
-                    data = await asyncio.wait_for(reader.read(4096), self.poll_interval)
+                    data = await asyncio.wait_for(
+                        reader.read(4096), max(0.001, next_burst - loop.time())
+                    )
                 except TimeoutError:
                     continue
                 if not data:
@@ -148,6 +163,8 @@ class SimPanel:
                 return
             writer.write(p.CONF_ACK)
             self._apply_command(address, raw[12])
+            if self.echo_commands:
+                writer.write(event_log(address, raw[12]))
         elif record_type == p.REC_QUERY and query_type == p.QUERY_OCCUPIED:
             writer.write(p.CONF_ACK)
             inputs = {a for a in self.names.entries if a < 0x0500} | self.names.not_occupied

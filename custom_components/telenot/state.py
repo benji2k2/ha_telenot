@@ -1,4 +1,8 @@
-"""State model of the complex 400 built from block status and message records. No I/O.
+"""State model of the complex 400 built from the block status telegrams only. No I/O.
+
+Message records are event log entries (see protocol.PanelEvent), not status bits: after a
+GMS "disarm" the panel reports address 0x0530 with code 0xE1, whose bit 0x80 would read as
+"inactive" (verified on the panel on 2026-10-07).
 
 Address map (complex 400, security area 1, verified against the panel on 2026-10-06):
 
@@ -14,7 +18,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from .protocol import EXT_INPUTS, EXT_OUTPUTS, BlockStatus, Frame, Message
+from .protocol import EXT_INPUTS, EXT_OUTPUTS, BlockStatus, Frame
 
 ADDR_DISARMED = 0x0530
 ADDR_ARMED_HOME = 0x0531
@@ -73,13 +77,11 @@ class PanelState:
         return dict(self._bits)
 
     def apply_frame(self, frame: Frame) -> set[int]:
-        """Apply all status records of a frame; return the addresses whose bit changed."""
+        """Apply all block status records of a frame; return the addresses whose bit changed."""
         changed: set[int] = set()
         for record in frame.records():
             if (block := record.as_block_status()) is not None:
                 changed |= self.apply_block(block)
-            elif (message := record.as_message()) is not None:
-                changed |= self.apply_message(message)
         return changed
 
     def apply_block(self, block: BlockStatus) -> set[int]:
@@ -90,12 +92,6 @@ class PanelState:
         else:
             self.outputs_seen = True
         return {a for a in block.addresses() if self._set(a, bool(block.is_active(a)))}
-
-    def apply_message(self, message: Message) -> set[int]:
-        """A spontaneous message updates the single address it names."""
-        if message.extension not in (EXT_INPUTS, EXT_OUTPUTS):
-            return set()
-        return {message.address} if self._set(message.address, message.active) else set()
 
     def _set(self, address: int, active: bool) -> bool:
         """Store a bit; True if it is new or changed."""

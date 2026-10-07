@@ -36,12 +36,14 @@ areas from the panel** instead of making you find addresses by trial and error.
 
 | Device | Entities |
 |---|---|
-| **Telenot complex 400** | Alarm panel (disarmed / armed home / armed away), ready for home, ready for away, alarm, fault, battery fault, mains fault, button *reset alarm*, connection (diagnostic) |
+| **Telenot complex 400** | Alarm panel (disarmed / armed home / armed away), ready for home, ready for away, alarm, fault, battery fault, mains fault, button *reset alarm*, *event log* (event entity: armed, disarmed, alarms, faults with source and panel time), connection (diagnostic) |
 | **One device per detection area**, named as in the panel, linked to the panel | *State* of the area, every detector of the area (disabled by default), *bypassed* (diagnostic) |
 
 
-Commands are sent only in the panel's send window and confirmed by the panel; the alarm
-state always comes from the panel, never from the command that was sent. Area 1 only.
+Commands are sent at once (the panel accepts them outside its ~3.4 s poll cycle) unless the
+line has just been busy, and are confirmed by the panel; without confirmation they are
+retried in the send window. The alarm state always comes from the panel's status telegrams,
+never from the command that was sent or from event log entries. Area 1 only.
 
 ## Hardware
 
@@ -65,8 +67,8 @@ Things to know:
   converter's TCP port can disarm the panel. Restrict access to the converter in your
   network.
 - While no client acknowledges the panel's telegrams (Home Assistant restarting, converter
-  offline), the panel may register a transmission-path fault. That is a fault message, not
-  an alarm.
+  offline), the panel keeps working on its own. In a test on a complex 400, two minutes
+  without acknowledgement left no trace: no fault bit, nothing on the keypad.
 - **After a restart or reconnect** the integration reads the panel's complete status again
   before its entities become available, so changes made at the keypad in the meantime show
   up.

@@ -5,9 +5,16 @@ Rules (see protocol.py):
 - Every SEND_NORM poll and every SEND_NDAT telegram of the panel is answered. A poll is
   answered with CONFIRM_ACK unless a command or query is waiting – then that frame takes the
   send window instead. CONFIRM_ACK/NAK from the panel are never answered.
+- Commands go out at once, without waiting for the send window: the panel polls only once
+  per ~3.4 s cycle but accepts a command at any time and answers within ~0.2 s (seen with
+  telenot-bridge, which has always sent this way). As in carhensi/telenot-esp-bridge, only
+  when the line has been quiet for a moment – right after a panel burst a command collided
+  reproducibly there. A command the panel ignored times out and is retried in the send
+  window; retries and queries always use the send window.
 - One frame in flight at a time. Commands are confirmed by the panel's CONFIRM_ACK (an
   embedded error record 0x11 means rejected), retried on NAK or timeout, and never resent
   after a reconnect.
+- Event log entries (message records) go to event listeners; they never change the state.
 - The connection is rebuilt without limit (backoff), and also when the panel stays silent
   although TCP is up. Everything known about the panel is forgotten on every disconnect.
 """
@@ -47,6 +54,8 @@ class Timing:
     command_attempts: int = 3
     query_timeout: float = 4.0  # per attempt, until the answer telegram
     query_attempts: int = 3
+    immediate_commands: bool = True  # first attempt without waiting for the send window
+    quiet_before_send: float = 0.4  # s since the last frame before sending immediately
 
 
 class CommandResult(Enum):
@@ -97,6 +106,7 @@ class TelenotClient:
         self.last_result: CommandResult | None = None
         self.stats = {"connects": 0, "frames": 0, "acks_sent": 0, "frame_errors": 0}
         self._listeners: list[Callable[[set[int]], None]] = []
+        self._event_listeners: list[Callable[[p.PanelEvent], None]] = []
         self._writer: asyncio.StreamWriter | None = None
         self._task: asyncio.Task | None = None
         self._jobs: deque[_Job] = deque()
@@ -114,6 +124,11 @@ class TelenotClient:
         """Callback with the changed addresses; an empty set means availability changed."""
         self._listeners.append(callback)
         return lambda: self._listeners.remove(callback)
+
+    def add_event_listener(self, callback: Callable[[p.PanelEvent], None]) -> Callable[[], None]:
+        """Callback for every event log entry of the panel."""
+        self._event_listeners.append(callback)
+        return lambda: self._event_listeners.remove(callback)
 
     def start(self) -> None:
         self._stopping = False
@@ -209,8 +224,12 @@ class TelenotClient:
             complete_before = self.state.complete
             changed = self.state.apply_frame(frame)
             self._answer_queries(frame)
-            if changed or complete_before != self.state.complete:
+            if complete_before != self.state.complete:
+                self._notify(set())  # now available: every entity, not only changed bits
+            elif changed:
                 self._notify(changed)
+            if (event := frame.event()) is not None:
+                self._notify_event(event)
         elif function in (p.Function.CONFIRM_ACK, p.Function.CONFIRM_NAK):
             self._confirm(frame, function is p.Function.CONFIRM_ACK, now)
 
@@ -221,6 +240,14 @@ class TelenotClient:
             self.stats["acks_sent"] += 1
         self._writer.write(data)
         await self._writer.drain()
+
+    def _notify_event(self, event: p.PanelEvent) -> None:
+        _LOGGER.debug("Panel event %s", event)
+        for callback in list(self._event_listeners):
+            try:
+                callback(event)
+            except Exception:
+                _LOGGER.exception("Event listener failed")
 
     def _notify(self, changed: set[int]) -> None:
         for callback in list(self._listeners):
@@ -309,7 +336,22 @@ class TelenotClient:
     async def _submit(self, job: _Job) -> object:
         if not self.connected:
             return CommandResult.NOT_CONNECTED
-        self._jobs.append(job)
+        if (
+            job.kind == "command"
+            and self.timing.immediate_commands
+            and self._in_flight is None
+            and not self._jobs
+            and self.last_frame is not None
+            and time.monotonic() - self.last_frame >= self.timing.quiet_before_send
+        ):
+            # first attempt at once; the deadline check moves a retry to the send window
+            job.attempts = 1
+            job.deadline = time.monotonic() + job.timeout
+            self._in_flight = job
+            with contextlib.suppress(OSError, ConnectionError):
+                await self._send(job.frame)  # a broken socket fails the job via _close
+        else:
+            self._jobs.append(job)
         return await job.future
 
     # ───────────────────────── commands ─────────────────────────

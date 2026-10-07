@@ -97,6 +97,53 @@
       "reset": {
         "name": "Reset alarm"
       }
+    },
+    "event": {
+      "event_log": {
+        "name": "Event log",
+        "state_attributes": {
+          "event_type": {
+            "name": "Event type",
+            "state": {
+              "armed_away": "Armed away",
+              "armed_home": "Armed home",
+              "disarmed": "Disarmed",
+              "fire": "Fire",
+              "hold_up": "Hold-up",
+              "intrusion": "Intrusion",
+              "tamper": "Tamper",
+              "fault": "Fault",
+              "mains_fault": "Mains fault",
+              "battery_fault": "Battery fault",
+              "transmission_fault": "Transmission path fault",
+              "technical": "Technical message",
+              "technical_alarm": "Technical alarm",
+              "shutdown": "Shutdown",
+              "reset": "Reset",
+              "restart": "Restart",
+              "other": "Other"
+            }
+          },
+          "active": {
+            "name": "Active"
+          },
+          "address": {
+            "name": "Address"
+          },
+          "name": {
+            "name": "Name"
+          },
+          "code": {
+            "name": "Message type"
+          },
+          "source": {
+            "name": "Source"
+          },
+          "panel_time": {
+            "name": "Panel time"
+          }
+        }
+      }
     }
   },
   "exceptions": {

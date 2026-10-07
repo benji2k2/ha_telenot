@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
+from dataclasses import replace
+from datetime import datetime
+from itertools import groupby
 
 import pytest
 
@@ -27,6 +30,7 @@ FAST = Timing(
     command_attempts=3,
     query_timeout=0.2,
     query_attempts=3,
+    quiet_before_send=0.005,
 )
 
 
@@ -150,17 +154,74 @@ async def test_silent_panel_triggers_reconnect(client, panel):
     assert panel.connections >= 2
 
 
-async def test_waiting_command_fails_on_disconnect_and_is_not_resent(client, panel):
-    panel.silent = True  # no send window any more
-    await asyncio.sleep(0.1)  # let polls already on the wire be answered
-    task = asyncio.create_task(client.arm_home())
-    await asyncio.sleep(0.05)
+async def test_waiting_commands_fail_on_disconnect_and_are_not_resent(client, panel):
+    first = p.encode_command(0x0531, p.EXT_OUTPUTS, p.ART_ARM_HOME)
+    panel.swallow = {first}  # the panel never confirms the first command
+    in_flight = asyncio.create_task(client.arm_home())
+    await asyncio.sleep(0.02)
+    queued = asyncio.create_task(client.disarm())  # waits behind the first one
+    await asyncio.sleep(0.02)
     await panel.drop()
-    assert await task is CommandResult.NOT_CONNECTED
-    panel.silent = False
+    assert await in_flight is CommandResult.NOT_CONNECTED
+    assert await queued is CommandResult.NOT_CONNECTED
     await until(lambda: client.available)
     await asyncio.sleep(0.2)
+    assert sum(f == first for f in panel.received) == 1  # sent once, swallowed, never resent
     assert panel.commands == []
+
+
+async def test_command_goes_out_without_waiting_for_the_send_window(client, panel):
+    panel.silent = True  # no polls: only an immediate send can reach the panel
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    assert await client.arm_away() is CommandResult.OK
+    assert loop.time() - started < 0.2
+    panel.silent = False
+
+
+async def test_command_right_after_panel_traffic_waits_for_the_send_window(panel):
+    """Line not quiet long enough: the command takes the next SEND_NORM instead."""
+    c = TelenotClient("127.0.0.1", panel.port, replace(FAST, quiet_before_send=60.0))
+    c.start()
+    try:
+        await until(lambda: c.available)
+        panel.silent = True  # no more polls: the command must not go out
+        task = asyncio.create_task(c.arm_away())
+        await asyncio.sleep(0.1)
+        assert panel.commands == []
+        panel.silent = False
+        assert await task is CommandResult.OK
+        assert len(panel.commands) == 1
+    finally:
+        await c.stop()
+
+
+async def test_event_log_entries_reach_listeners_but_never_the_state(client, panel):
+    """Regression (P4, 2026-10-07): the echo of "disarm" (0x0530, code 0xE1) cleared the
+    disarmed bit for one status cycle; the echo of "reset" would have shown an alarm."""
+    events: list[p.PanelEvent] = []
+    states: list[ArmState] = []
+    client.add_event_listener(events.append)
+    client.add_listener(lambda _: states.append(client.state.arm_state))
+    assert await client.arm_home() is CommandResult.OK
+    await until(lambda: client.state.arm_state is ArmState.ARMED_HOME)
+    assert await client.disarm() is CommandResult.OK
+    await until(lambda: client.state.arm_state is ArmState.DISARMED)
+    panel.set(ADDR_ALARM, True)
+    await until(lambda: client.state.arm_state is ArmState.TRIGGERED)
+    assert await client.reset() is CommandResult.OK
+    await until(lambda: client.state.arm_state is ArmState.DISARMED)
+    await asyncio.sleep(0.2)  # several status cycles after the last echo
+    assert [(e.address, e.art) for e in events] == [
+        (0x0531, p.ART_ARM_HOME),
+        (0x0530, p.ART_DISARM),
+        (0x0533, p.ART_RESET),
+    ]
+    assert events[0].source == "GMS"
+    assert events[0].time == datetime(2026, 10, 7, 8, 28, 44)
+    # exactly the real changes, no flicker from the echoes
+    runs = [state for state, _ in groupby(states)]
+    assert runs == [ArmState.ARMED_HOME, ArmState.DISARMED, ArmState.TRIGGERED, ArmState.DISARMED]
 
 
 async def test_reconnects_when_converter_comes_back(panel):

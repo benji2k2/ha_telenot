@@ -28,11 +28,13 @@ import time
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from custom_components.telenot import protocol  # noqa: E402
 from custom_components.telenot.client import (  # noqa: E402
     CommandResult,
     TelenotClient,
     Timing,
 )
+from custom_components.telenot.event import event_type  # noqa: E402
 from custom_components.telenot.inventory import to_storage  # noqa: E402
 from custom_components.telenot.state import (  # noqa: E402
     ADDR_ALARM,
@@ -68,6 +70,43 @@ def load_names(path: str | None) -> dict[int, str]:
     return names
 
 
+class LoggingDecoder(protocol.FrameDecoder):
+    """Prints the raw bytes around every frame error (only inside this tool)."""
+
+    log: Callable[[str], None] | None = None
+    raw = False  # also print every long frame with its records
+
+    def feed(self, data: bytes) -> list[protocol.Frame]:
+        before, errors = bytes(self._buf), self.errors
+        frames = super().feed(data)
+        log = LoggingDecoder.log
+        if log is None:
+            return frames
+        if self.errors != errors:
+            log(f"frame error x{self.errors - errors}: buffer {before.hex()} + read {data.hex()}")
+        if LoggingDecoder.raw:
+            for frame in frames:
+                if len(frame.raw) > 8:  # skip polls and short acknowledgements
+                    log(f"<- {frame.function.name} {describe(frame)}")
+        return frames
+
+
+def describe(frame: protocol.Frame) -> str:
+    """Records of a frame in short form; block status only as base/extension."""
+    parts = []
+    for record in frame.records():
+        if (m := record.as_message()) is not None:
+            parts.append(
+                f"MESSAGE addr=0x{m.address:04X} ext=0x{m.extension:02X} art=0x{m.art:02X} "
+                f"(active={m.active})"
+            )
+        elif (b := record.as_block_status()) is not None:
+            parts.append(f"BLOCK base=0x{b.base:04X} ext=0x{b.extension:02X}")
+        else:
+            parts.append(f"REC 0x{record.type:02X} {record.payload.hex()}")
+    return "; ".join(parts) or frame.raw.hex()
+
+
 class Probe:
     def __init__(
         self,
@@ -82,6 +121,7 @@ class Probe:
         self.changes = 0
         self.availability: list[tuple[float, bool]] = []
         client.add_listener(self._changed)
+        client.add_event_listener(self._event)
 
     def log(self, text: str) -> None:
         self.out(f"{time.monotonic() - self.started:8.1f}s  {text}")
@@ -112,6 +152,13 @@ class Probe:
         for address in sorted(changed):
             self.changes += 1
             self.log(f"{self.label(address)} → {self.client.state.is_active(address)}")
+
+    def _event(self, event: protocol.PanelEvent) -> None:
+        when = event.time.isoformat(sep=" ") if event.time else "?"
+        self.log(
+            f"event {event_type(event)}: {self.label(event.address)} code=0x{event.art:02X} "
+            f"source={event.source!r} panel_time={when}"
+        )
 
     def stats(self) -> str:
         st = self.client.stats
@@ -150,10 +197,24 @@ async def run(args: argparse.Namespace, out: Callable[[str], None] = print) -> i
             liveness=0.5,
             command_timeout=0.2,
             query_timeout=0.2,
+            quiet_before_send=0.005,
         )
     )
     client = TelenotClient(args.host, args.port, timing)
     probe = Probe(client, load_names(args.names), out)
+    original_decoder = protocol.FrameDecoder
+    protocol.FrameDecoder = LoggingDecoder  # the client creates its decoder per connection
+    LoggingDecoder.log = probe.log
+    LoggingDecoder.raw = args.raw
+    if args.raw:
+        send = client._send  # noqa: SLF001
+
+        async def logged_send(data: bytes) -> None:
+            if data != protocol.CONF_ACK:
+                probe.log(f"-> {data.hex()}")
+            await send(data)
+
+        client._send = logged_send  # noqa: SLF001
     client.start()
     try:
         if not await wait_available(client, args.connect_wait):
@@ -209,6 +270,9 @@ async def run(args: argparse.Namespace, out: Callable[[str], None] = print) -> i
         return 0
     finally:
         await client.stop()
+        protocol.FrameDecoder = original_decoder
+        LoggingDecoder.log = None
+        LoggingDecoder.raw = False
         out(probe.stats())
 
 
@@ -225,9 +289,13 @@ def parse(argv: list[str] | None = None) -> argparse.Namespace:
     mode.add_argument("--scan", metavar="OUT.json", help="read names and detection areas")
     mode.add_argument("--command", choices=COMMANDS)
     ap.add_argument("--confirm", action="store_true", help="required for --command")
+    ap.add_argument("--raw", action="store_true", help="print every status/message frame")
     ap.add_argument("--fast", action="store_true", help=argparse.SUPPRESS)  # tests
     return ap.parse_args(argv)
 
 
 if __name__ == "__main__":
-    sys.exit(asyncio.run(run(parse())))
+    try:
+        sys.exit(asyncio.run(run(parse())))
+    except KeyboardInterrupt:
+        sys.exit(130)  # Ctrl-C: the connection was closed and the stats printed

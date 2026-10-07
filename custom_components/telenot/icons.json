@@ -26,6 +26,11 @@
       "reset": {
         "default": "mdi:bell-cancel"
       }
+    },
+    "event": {
+      "event_log": {
+        "default": "mdi:script-text-outline"
+      }
     }
   }
 }

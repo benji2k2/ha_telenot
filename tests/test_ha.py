@@ -261,6 +261,24 @@ async def test_alarm_and_reset_button(hass: HomeAssistant, entry, panel) -> None
     await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.DISARMED)
 
 
+async def test_event_log_entity(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
+    event_id = "event.telenot_complex_400_event_log"
+    await hass.services.async_call(
+        "alarm_control_panel", "alarm_arm_home", {"entity_id": PANEL}, blocking=True
+    )
+    await until(lambda: hass.states.get(event_id).attributes.get("event_type") == "armed_home")
+    attrs = hass.states.get(event_id).attributes
+    assert attrs["source"] == "GMS"
+    assert attrs["panel_time"] == "2026-10-07T08:28:44"
+    assert attrs["address"] == "0x0531"
+    assert attrs["code"] == "0x62"
+    await hass.services.async_call(
+        "alarm_control_panel", "alarm_disarm", {"entity_id": PANEL}, blocking=True
+    )
+    await until(lambda: hass.states.get(event_id).attributes.get("event_type") == "disarmed")
+    await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.DISARMED)
+
+
 async def test_unavailable_on_disconnect_and_back(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
     panel.silent = True
     await until(lambda: hass.states.get(PANEL).state == STATE_UNAVAILABLE)
@@ -268,6 +286,12 @@ async def test_unavailable_on_disconnect_and_back(hass: HomeAssistant, entry, pa
     assert conn.state == STATE_OFF  # the connection sensor itself stays available
     panel.silent = False
     await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.DISARMED, timeout=5)
+    await hass.async_block_till_done()
+    # Regression (P4): entities on input addresses and the connection sensor came back too,
+    # not only those whose bits changed in the telegram that completed the status.
+    assert hass.states.get("binary_sensor.telenot_complex_400_akku_stoerung").state == STATE_OFF
+    assert conn.entity_id and hass.states.get(conn.entity_id).state == STATE_ON
+    assert hass.states.get("binary_sensor.fenster_atelier").state == STATE_OFF
 
 
 async def _restart(hass: HomeAssistant, entry: MockConfigEntry) -> None:
