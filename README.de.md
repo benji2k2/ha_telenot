@@ -14,10 +14,10 @@
   <a href="README.md">English</a>
 </p>
 
-> **Stand: in Entwicklung, noch nicht veröffentlicht.** Protokoll, Verbindung, Einrichtung mit
-> Suchlauf, Geräte, Entitäten und Optionen sind fertig und gegen Telegramme einer echten Zentrale
-> sowie eine simulierte Zentrale über TCP getestet. Als Nächstes folgt der erste Test an einer
-> echten Zentrale.
+> **Stand: erste Version (0.1.0).** Getestet an einer complex 400 (Sicherungsbereich 1) hinter
+> einem Seriell-TCP-Wandler: Verbindung, vollständiger Status, Melder, intern scharf und unscharf,
+> Ereignisprotokoll, Neustart-Lücken. Extern scharf, Alarm und Rücksetzen sind bisher nur gegen
+> eine simulierte Zentrale getestet.
 
 ---
 
@@ -77,13 +77,13 @@ Gut zu wissen:
 
 ## Voraussetzungen
 
-- Home Assistant **2026.8** oder neuer (geplantes Minimum).
+- Home Assistant **2026.8** oder neuer.
 - Keine Python-Abhängigkeiten; die Integration nutzt nur asyncio-TCP.
 
 ## Installation
 
-Noch nicht veröffentlicht. Danach: HACS → benutzerdefiniertes Repository `benji2k2/ha_telenot`
-(Kategorie *Integration*) → installieren → Home Assistant neu starten.
+HACS → benutzerdefiniertes Repository `benji2k2/ha_telenot` (Kategorie *Integration*) →
+installieren → Home Assistant neu starten.
 
 ## Einrichtung
 

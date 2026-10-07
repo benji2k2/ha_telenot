@@ -14,9 +14,10 @@
   <a href="README.de.md">Deutsch</a>
 </p>
 
-> **Status: in development, not released yet.** Protocol, connection, setup flow with scan,
-> devices, entities and options are done and tested against telegrams of a real panel and a
-> simulated panel over TCP. A first test on a real panel is next.
+> **Status: first release (0.1.0).** Tested on one complex 400 (security area 1) behind a
+> serial-to-TCP converter: connection, full status, detectors, arming home and disarming,
+> event log, restart gaps. Arming away, alarm and reset are tested against a simulated panel
+> only so far.
 
 ---
 
@@ -77,13 +78,13 @@ Things to know:
 
 ## Requirements
 
-- Home Assistant **2026.8** or newer (planned minimum).
+- Home Assistant **2026.8** or newer.
 - No Python dependencies; the integration uses asyncio TCP only.
 
 ## Installation
 
-Not yet released. Once it is: HACS → custom repository `benji2k2/ha_telenot` (category
-*Integration*) → install → restart Home Assistant.
+HACS → custom repository `benji2k2/ha_telenot` (category *Integration*) → install →
+restart Home Assistant.
 
 ## Setup
 
