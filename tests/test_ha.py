@@ -201,19 +201,27 @@ async def test_devices_and_entities(hass: HomeAssistant, entry: MockConfigEntry)
     assert reg.async_get_entity_id("binary_sensor", DOMAIN, f"{entry.entry_id}_mb5_bypassed")
 
 
+def _device_identifiers(hass: HomeAssistant, entry: MockConfigEntry) -> set[str]:
+    return {
+        ident
+        for device in dr.async_entries_for_config_entry(dr.async_get(hass), entry.entry_id)
+        for domain, ident in device.identifiers
+        if domain == DOMAIN
+    }
+
+
 async def test_rescan_without_an_area_removes_its_device(
     hass: HomeAssistant, entry: MockConfigEntry
 ) -> None:
-    reg = dr.async_get(hass)
-    area = reg.async_get_device(identifiers={(DOMAIN, f"{entry.entry_id}_mb5")})
-    assert area is not None
+    assert f"{entry.entry_id}_mb5" in _device_identifiers(hass, entry)
     detectors = [d for d in entry.data[CONF_DETECTORS] if d["address"] not in (0x0574, 0x05F4)]
     detectors = [d for d in detectors if d["detection_area"] != 5]
     hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_DETECTORS: detectors})
     assert await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
-    assert reg.async_get_device(identifiers={(DOMAIN, f"{entry.entry_id}_mb5")}) is None
-    assert reg.async_get_device(identifiers={(DOMAIN, entry.entry_id)}) is not None
+    remaining = _device_identifiers(hass, entry)
+    assert f"{entry.entry_id}_mb5" not in remaining
+    assert entry.entry_id in remaining
     assert hass.states.get("binary_sensor.fenster_atelier") is None
 
 
