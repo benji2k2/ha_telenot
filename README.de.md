@@ -43,6 +43,10 @@ Meldebereiche der Melder aus der Zentrale** – statt Adressen durch Ausprobiere
 Bedienteil-Eingänge (vier je Bedienteil ab Adresse 0x00B0) heißen nach ihrer Rolle: Deckelkontakt,
 Deckelkontakt Anzeigeteil, keine Antwort, freie Taste / Bedrohung. Standardmäßig deaktiviert.
 
+Ausgänge, die der Errichter benannt hat (außer Bereichsstatus, Meldebereichen und Sperren), etwa
+ein Summer für die Eingangsverzögerung, erscheinen als Binärsensoren am Gerät der Zentrale – nützlich,
+um bei laufender Eingangsverzögerung zu benachrichtigen.
+
 
 Befehle gehen sofort raus (die Zentrale nimmt sie auch außerhalb ihres ~3,4-s-Abfragetakts
 an), außer die Leitung war gerade belegt, und werden von ihr quittiert; ohne Quittung folgt

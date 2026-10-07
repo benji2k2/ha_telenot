@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 import re
 
 from .client import Detector
-from .state import ADDR_AREA_BYPASSED, ADDR_DETECTION_AREA
+from .state import ADDR_AREA_BYPASSED, ADDR_DETECTION_AREA, ADDR_DISARMED
 
 MAX_DETECTION_AREAS = 128
 
@@ -58,6 +58,19 @@ class Inventory:
     areas: dict[int, DetectionArea] = field(default_factory=dict)
     system_points: list[Point] = field(default_factory=list)  # detection area 0 or unknown
     names: dict[int, str] = field(default_factory=dict)  # every named address, for events
+    outputs: list[Point] = field(default_factory=list)  # other named outputs, e.g. a buzzer
+
+
+def is_named_output(address: int, name: str) -> bool:
+    """An output the installer named that is not area status, detection area or bypass –
+    e.g. the entry delay buzzer. Area status: 8 addresses per security area from 0x0530."""
+    if not name:
+        return False
+    return not (
+        ADDR_DISARMED <= address < ADDR_DETECTION_AREA
+        or 0 <= address - ADDR_DETECTION_AREA < MAX_DETECTION_AREAS
+        or 0 <= address - ADDR_AREA_BYPASSED < MAX_DETECTION_AREAS
+    )
 
 
 def is_keypad_input(address: int) -> bool:
@@ -102,6 +115,8 @@ def build(stored: list[dict]) -> Inventory:
             and (area := inventory.areas.get(offset + 1)) is not None
         ):
             area.bypassed_known = True
+        if item["kind"] == "output" and is_named_output(address, item["name"]):
+            inventory.outputs.append(Point(address, item["name"], 0))
         if item["kind"] != "input":
             continue
         name, device_class = item["name"] or f"0x{address:04X}", None
@@ -125,7 +140,7 @@ _KINDS: list[tuple[str, str]] = [
     (r"bewegung|\bir\b|ir-|\bim\b|im-|pir|bm-", "motion"),
     (r"fenster|\bmk\b|mk-|magnet", "window"),
     (r"tür|tuer|haustür", "door"),
-    (r"sirene|signalgeber|\bsg\b|akustisch|optisch", "sound"),
+    (r"sirene|signalgeber|\bsg\b|akustisch|optisch|summer|buzzer", "sound"),
 ]
 
 

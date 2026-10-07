@@ -43,6 +43,10 @@ areas from the panel** instead of making you find addresses by trial and error.
 Keypad inputs (four per keypad from address 0x00B0) are named by their role: tamper, display
 tamper, no answer, free key / duress. They are disabled by default.
 
+Outputs the installer named (other than area status, detection areas and bypass), such as an
+entry delay buzzer, appear as binary sensors on the panel device – useful to notify when the
+entry delay is running.
+
 
 Commands are sent at once (the panel accepts them outside its ~3.4 s poll cycle) unless the
 line has just been busy, and are confirmed by the panel; without confirmation they are

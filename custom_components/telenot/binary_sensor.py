@@ -39,6 +39,9 @@ async def async_setup_entry(
     entities.append(TelenotConnectionSensor(entry))
     for point in inventory.system_points:
         entities.append(TelenotPointSensor(entry, point, panel, system=True))
+    entities.extend(
+        TelenotPointSensor(entry, point, panel, output=True) for point in inventory.outputs
+    )
     for area in inventory.areas.values():
         device = area_device(entry, area)
         area_class = guess_device_class(area.name)
@@ -95,7 +98,8 @@ class TelenotBitSensor(TelenotEntity, BinarySensorEntity):
 
 
 class TelenotPointSensor(TelenotBitSensor):
-    """A single detector; disabled by default unless it is a system fault or tamper."""
+    """A single detector (disabled by default unless a system fault or tamper) or a named
+    output such as the entry delay buzzer (shown)."""
 
     def __init__(
         self,
@@ -104,6 +108,7 @@ class TelenotPointSensor(TelenotBitSensor):
         device: DeviceInfo,
         *,
         system: bool = False,
+        output: bool = False,
     ) -> None:
         device_class = point.device_class or guess_device_class(point.name)
         super().__init__(
@@ -113,9 +118,13 @@ class TelenotPointSensor(TelenotBitSensor):
             device,
             device_class,
             # Keypad inputs stay off: an absent keypad may report "no answer" for good.
-            enabled=system
-            and device_class in _ENABLED_SYSTEM_CLASSES
-            and not is_keypad_input(point.address),
+            # Named outputs (e.g. the entry delay buzzer) were labelled on purpose: shown.
+            enabled=output
+            or (
+                system
+                and device_class in _ENABLED_SYSTEM_CLASSES
+                and not is_keypad_input(point.address)
+            ),
         )
         self._attr_name = point.name
         self._attr_extra_state_attributes = {

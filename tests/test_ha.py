@@ -42,6 +42,8 @@ NAMES = Names(
         0x0571: ("Bewegungsmelder Diele", 0),
         0x0574: ("Fenster         Atelier", 0),
         0x05F4: ("Fenster         Atelier", 0),
+        0x0512: ("Buzzer Entry", 0),
+        0x0515: ("", 0),
     }
 )
 
@@ -223,6 +225,18 @@ async def test_rescan_without_an_area_removes_its_device(
     assert f"{entry.entry_id}_mb5" not in remaining
     assert entry.entry_id in remaining
     assert hass.states.get("binary_sensor.fenster_atelier") is None
+
+
+async def test_named_output_buzzer(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
+    """A named output (the entry delay buzzer) is shown; unnamed outputs are not."""
+    buzzer = "binary_sensor.telenot_complex_400_buzzer_entry"
+    state = hass.states.get(buzzer)
+    assert state is not None and state.state == STATE_OFF
+    assert state.attributes["device_class"] == "sound"
+    panel.set(0x0512, True)
+    await until(lambda: hass.states.get(buzzer).state == STATE_ON)
+    reg = er.async_get(hass)
+    assert reg.async_get_entity_id("binary_sensor", DOMAIN, f"{entry.entry_id}_0515") is None
 
 
 async def test_arm_away_needs_code_home_does_not(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
