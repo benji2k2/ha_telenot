@@ -9,8 +9,10 @@ Rules (see protocol.py):
   per ~3.4 s cycle but accepts a command at any time and answers within ~0.2 s (seen with
   telenot-bridge, which has always sent this way). As in carhensi/telenot-esp-bridge, only
   when the line has been quiet for a moment – right after a panel burst a command collided
-  reproducibly there. A command the panel ignored times out and is retried in the send
-  window; retries and queries always use the send window.
+  reproducibly there. Unlike there, a command that arrives during a burst waits only for
+  that quiet moment (well under a second), not for the next poll ~3 s later. A command the
+  panel ignored times out and is retried in the send window; retries and queries always
+  use the send window.
 - One frame in flight at a time. Commands are confirmed by the panel's CONFIRM_ACK (an
   embedded error record 0x11 means rejected), retried on NAK or timeout, and never resent
   after a reconnect.
@@ -56,6 +58,7 @@ class Timing:
     query_attempts: int = 3
     immediate_commands: bool = True  # first attempt without waiting for the send window
     quiet_before_send: float = 0.4  # s since the last frame before sending immediately
+    quiet_wait_max: float = 1.5  # s to wait for that quiet moment, else the send window
 
 
 class CommandResult(Enum):
@@ -333,9 +336,26 @@ class TelenotClient:
         if not job.future.done():
             job.future.set_result(result)
 
+    async def _wait_for_quiet(self) -> bool:
+        """Wait until no frame has arrived for ``quiet_before_send`` (bounded)."""
+        give_up = time.monotonic() + self.timing.quiet_wait_max
+        while self.connected and self.last_frame is not None:
+            now = time.monotonic()
+            quiet_at = self.last_frame + self.timing.quiet_before_send
+            if now >= quiet_at:
+                return True
+            if quiet_at > give_up:
+                return False
+            await asyncio.sleep(quiet_at - now)
+        return False
+
     async def _submit(self, job: _Job) -> object:
         if not self.connected:
             return CommandResult.NOT_CONNECTED
+        if job.kind == "command" and self.timing.immediate_commands:
+            await self._wait_for_quiet()
+            if not self.connected:
+                return CommandResult.NOT_CONNECTED
         if (
             job.kind == "command"
             and self.timing.immediate_commands

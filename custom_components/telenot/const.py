@@ -22,4 +22,7 @@ DEFAULT_CODE_FOR: Final = ["arm_away"]
 
 # Read at runtime (tests shorten them).
 CLIENT_TIMING = Timing()
-CONNECT_WAIT = 15.0  # s to wait for the panel when setting up
+# s to wait for the panel when setting up. After a pause of ~10 min or more the converter
+# hands over a backlog of buffered polls and the panel resumes its status telegrams only
+# after ~13 s (seen twice on 2026-10-07); after a short pause it is ~3.4 s.
+CONNECT_WAIT = 30.0

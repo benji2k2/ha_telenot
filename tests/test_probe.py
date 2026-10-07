@@ -89,6 +89,23 @@ async def test_command_needs_confirm(panel: SimPanel) -> None:
     assert any("event armed_home: 0x0531 armed home" in line and "GMS" in line for line in lines)
 
 
+async def test_command_sequence(panel: SimPanel) -> None:
+    rc, lines = await _run(
+        panel,
+        "--confirm",
+        "--command",
+        "arm_home",
+        "--command",
+        "disarm@0.05",
+        "--command",
+        "disarm@0.05",
+    )
+    assert rc == 0
+    assert len(panel.commands) == 3
+    assert ADDR_DISARMED in panel.active
+    assert sum("result disarm: ok" in line for line in lines) == 2
+
+
 async def test_scan_writes_json(panel: SimPanel, tmp_path: Path) -> None:
     out = tmp_path / "scan.json"
     rc, _ = await _run(panel, "--scan", str(out))

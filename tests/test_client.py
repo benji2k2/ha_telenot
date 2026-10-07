@@ -181,7 +181,9 @@ async def test_command_goes_out_without_waiting_for_the_send_window(client, pane
 
 async def test_command_right_after_panel_traffic_waits_for_the_send_window(panel):
     """Line not quiet long enough: the command takes the next SEND_NORM instead."""
-    c = TelenotClient("127.0.0.1", panel.port, replace(FAST, quiet_before_send=60.0))
+    c = TelenotClient(
+        "127.0.0.1", panel.port, replace(FAST, quiet_before_send=60.0, quiet_wait_max=0.05)
+    )
     c.start()
     try:
         await until(lambda: c.available)
@@ -194,6 +196,25 @@ async def test_command_right_after_panel_traffic_waits_for_the_send_window(panel
         assert len(panel.commands) == 1
     finally:
         await c.stop()
+
+
+async def test_command_during_a_burst_waits_only_for_the_quiet_moment():
+    """Live 2026-10-07: a command right after a burst waited ~3 s for the next poll."""
+    sim = SimPanel(cycle=0.5)  # long quiet phase between bursts
+    await sim.start()
+    c = TelenotClient("127.0.0.1", sim.port, replace(FAST, quiet_before_send=0.05, liveness=2.0))
+    c.start()
+    try:
+        await until(lambda: c.available)
+        bursts = sim.status_sent
+        await until(lambda: sim.status_sent > bursts)  # a burst has just been sent
+        loop = asyncio.get_running_loop()
+        started = loop.time()
+        assert await c.arm_away() is CommandResult.OK
+        assert loop.time() - started < 0.25  # not the next burst 0.5 s later
+    finally:
+        await c.stop()
+        await sim.stop()
 
 
 async def test_event_log_entries_reach_listeners_but_never_the_state(client, panel):

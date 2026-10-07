@@ -234,14 +234,21 @@ async def run(args: argparse.Namespace, out: Callable[[str], None] = print) -> i
 
         if args.command:
             if not args.confirm:
-                probe.log(f"refusing to send {args.command} without --confirm")
+                probe.log(f"refusing to send {' '.join(args.command)} without --confirm")
                 return 2
-            probe.log(f"sending {args.command}")
-            result = await getattr(client, args.command)()
-            probe.log(f"result {result.value}")
+            steps = [parse_step(step) for step in args.command]
+            if args.delay:
+                await asyncio.sleep(args.delay)  # a command at a random moment, not after a burst
+            results = []
+            for name, wait in steps:
+                await asyncio.sleep(wait)
+                probe.log(f"sending {name}  ({probe.summary()})")
+                result = await getattr(client, name)()
+                probe.log(f"result {name}: {result.value}")
+                results.append(result)
             await asyncio.sleep(args.settle)
             probe.log(f"after: {probe.summary()}")
-            return 0 if result is CommandResult.OK else 1
+            return 0 if all(r is CommandResult.OK for r in results) else 1
 
         if args.gap:
             before = probe.snapshot()
@@ -276,19 +283,33 @@ async def run(args: argparse.Namespace, out: Callable[[str], None] = print) -> i
         out(probe.stats())
 
 
+def parse_step(step: str) -> tuple[str, float]:
+    """``disarm@0.2``: command, then seconds to wait after the previous command's result."""
+    name, _, wait = step.partition("@")
+    if name not in COMMANDS:
+        raise SystemExit(f"unknown command {name!r}, choose from {', '.join(COMMANDS)}")
+    return name, float(wait or 0)
+
+
 def parse(argv: list[str] | None = None) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("host")
     ap.add_argument("--port", type=int, default=8234)
     ap.add_argument("--names", help="JSON list with address/name, kept local")
     ap.add_argument("--duration", type=float, default=600.0, help="watch for this many seconds")
-    ap.add_argument("--connect-wait", type=float, default=20.0)
+    ap.add_argument("--connect-wait", type=float, default=30.0)
     ap.add_argument("--settle", type=float, default=10.0, help="watch after a command or gap")
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--gap", type=float, help="disconnect for this many seconds, then compare")
     mode.add_argument("--scan", metavar="OUT.json", help="read names and detection areas")
-    mode.add_argument("--command", choices=COMMANDS)
+    mode.add_argument(
+        "--command",
+        action="append",
+        metavar="CMD[@S]",
+        help=f"{'/'.join(COMMANDS)}; repeat for a sequence, @S = wait after the previous one",
+    )
     ap.add_argument("--confirm", action="store_true", help="required for --command")
+    ap.add_argument("--delay", type=float, default=0.0, help="wait before --command (s)")
     ap.add_argument("--raw", action="store_true", help="print every status/message frame")
     ap.add_argument("--fast", action="store_true", help=argparse.SUPPRESS)  # tests
     return ap.parse_args(argv)
