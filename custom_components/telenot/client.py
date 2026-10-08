@@ -21,6 +21,9 @@ Rules (see protocol.py):
   failure listeners at once, so a warning need not wait for a timeout.
 - The connection is rebuilt without limit (backoff), and also when the panel stays silent
   although TCP is up. Everything known about the panel is forgotten on every disconnect.
+- stop() closes the socket (so the converter frees its only client slot at once) but tells
+  no listener: it is called when Home Assistant stops or the entry unloads, and a
+  "disconnected" written then would only be a false alarm (e.g. for a heartbeat).
 """
 
 from __future__ import annotations
@@ -108,6 +111,7 @@ class TelenotClient:
         self.timing = timing or Timing()
         self.state = PanelState()
         self.connected = False  # TCP up and the panel is talking
+        self.was_available = False  # the full status arrived at least once since start()
         self.last_frame: float | None = None
         self.last_result: CommandResult | None = None
         self.stats = {"connects": 0, "frames": 0, "acks_sent": 0, "frame_errors": 0}
@@ -228,7 +232,7 @@ class TelenotClient:
                 job.future.set_result(CommandResult.NOT_CONNECTED)
         self._in_flight = None
         self._jobs.clear()
-        if was_connected:
+        if was_connected and not self._stopping:
             self._notify(set())
 
     # ───────────────────────── frames ─────────────────────────
@@ -248,6 +252,8 @@ class TelenotClient:
             changed = self.state.apply_frame(frame)
             self._answer_queries(frame)
             if complete_before != self.state.complete:
+                if self.state.complete:
+                    self.was_available = True
                 self._notify(set())  # now available: every entity, not only changed bits
             elif changed:
                 self._notify(changed)

@@ -9,8 +9,15 @@ from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelState,
 )
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.const import CONF_HOST, CONF_PORT, STATE_OFF, STATE_ON, STATE_UNAVAILABLE
-from homeassistant.core import HomeAssistant
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PORT,
+    EVENT_HOMEASSISTANT_STOP,
+    STATE_OFF,
+    STATE_ON,
+    STATE_UNAVAILABLE,
+)
+from homeassistant.core import Event, HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
@@ -432,3 +439,60 @@ async def test_diagnostics_redacts(hass: HomeAssistant, entry: MockConfigEntry) 
     assert "Atelier" not in text
     assert diag["connection"]["available"] is True
     assert diag["state"]["arm_state"] == "disarmed"
+
+
+CONNECTION = "binary_sensor.telenot_complex_400_connection_to_the_panel"
+
+
+def _record_states(hass: HomeAssistant, entity_id: str) -> list[str | None]:
+    seen: list[str | None] = []
+
+    @callback
+    def _changed(event: Event) -> None:
+        if event.data["entity_id"] == entity_id:
+            new = event.data["new_state"]
+            seen.append(new.state if new else None)
+
+    hass.bus.async_listen("state_changed", _changed)
+    return seen
+
+
+async def test_setup_does_not_wait_for_the_full_status(hass: HomeAssistant, panel) -> None:  # noqa: ANN001
+    """After a restart the panel resumes its status only after ~13 s: set up anyway."""
+    panel.status_delay = 3.5  # longer than the old wait for the full status (3 s in tests)
+    seen = _record_states(hass, CONNECTION)
+    e = MockConfigEntry(
+        domain=DOMAIN,
+        data={CONF_HOST: "127.0.0.1", CONF_PORT: panel.port, CONF_DETECTORS: stored_detectors()},
+    )
+    e.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(e.entry_id)
+    await hass.async_block_till_done()
+    assert e.state is ConfigEntryState.LOADED
+    # Not there yet: unavailable, not "off" - a heartbeat automation sends nothing then.
+    assert hass.states.get(CONNECTION).state == STATE_UNAVAILABLE
+    assert hass.states.get(PANEL).state == STATE_UNAVAILABLE
+    await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.DISARMED, timeout=8)
+    await hass.async_block_till_done()
+    assert hass.states.get(CONNECTION).state == STATE_ON
+    assert STATE_OFF not in seen
+    assert await hass.config_entries.async_unload(e.entry_id)
+
+
+async def test_home_assistant_stop_closes_the_connection(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
+    """HA does not unload entries when it stops: the stop event closes the connection."""
+    seen = _record_states(hass, CONNECTION)
+    assert panel._writers
+    hass.bus.async_fire(EVENT_HOMEASSISTANT_STOP)
+    await hass.async_block_till_done()
+    await until(lambda: not panel._writers)  # converter slot free for the next start
+    assert entry.runtime_data.client._task is None
+    assert seen == []  # no "off" while stopping: no false heartbeat alarm
+
+
+async def test_reload_writes_no_lost_connection(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
+    seen = _record_states(hass, CONNECTION)
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    await until(lambda: hass.states.get(CONNECTION).state == STATE_ON, timeout=5)
+    assert STATE_OFF not in seen

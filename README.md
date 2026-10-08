@@ -80,6 +80,11 @@ Things to know:
 - **After a restart or reconnect** the integration reads the panel's complete status again
   before its entities become available, so changes made at the keypad in the meantime show
   up.
+- **When Home Assistant stops** the integration closes the connection cleanly, so the
+  converter frees its only slot for the next start at once. When starting, it only waits until
+  the panel talks; the complete status may take another ~13 s. Until then the entities and the
+  *connection* sensor are **unavailable** – only afterwards does "off" really mean "connection
+  lost". So a restart never looks like a lost connection.
 - Opening the panel housing triggers its tamper contact — work on the wiring only with the
   panel disarmed and, if needed, in installer mode.
 

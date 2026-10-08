@@ -71,6 +71,7 @@ class SimPanel:
         self.connections = 0
         # test hooks
         self.silent = False
+        self.status_delay = 0.0  # s after a connect with polls only (seen ~13 s after a pause)
         self.swallow: set[bytes] = set()  # frames to ignore once each
         self.reject_next_command = False
         self.nak_next_command = False
@@ -115,11 +116,14 @@ class SimPanel:
         self.connections += 1
         decoder = p.FrameDecoder()
         loop = asyncio.get_running_loop()
-        next_burst = loop.time()
+        connected_at = next_burst = loop.time()
         try:
             while not writer.is_closing():
                 if loop.time() >= next_burst:
-                    if not self.silent:
+                    if not self.silent and loop.time() - connected_at < self.status_delay:
+                        writer.write(SEND_NORM)
+                        await writer.drain()
+                    elif not self.silent:
                         inputs, outputs = self.status_frames()
                         for frame in (SEND_NORM, inputs, SEND_NORM, outputs):
                             writer.write(frame)

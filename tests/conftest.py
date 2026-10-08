@@ -26,3 +26,4 @@ def fast_timing(monkeypatch):  # noqa: ANN001
 
     monkeypatch.setattr(const, "CLIENT_TIMING", FAST)
     monkeypatch.setattr(const, "CONNECT_WAIT", 3.0)
+    monkeypatch.setattr(const, "TALK_WAIT", 3.0)

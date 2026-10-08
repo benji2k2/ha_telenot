@@ -22,7 +22,11 @@ DEFAULT_CODE_FOR: Final = ["arm_away"]
 
 # Read at runtime (tests shorten them).
 CLIENT_TIMING = Timing()
-# s to wait for the panel when setting up. After a pause of ~10 min or more the converter
-# hands over a backlog of buffered polls and the panel resumes its status telegrams only
-# after ~13 s (seen twice on 2026-10-07); after a short pause it is ~3.4 s.
+# s the config flow waits for the full status (for the scan). After a pause of ~10 min or
+# more the converter hands over a backlog of buffered polls and the panel resumes its
+# status telegrams only after ~13 s (seen twice on 2026-10-07); after a short pause ~3.4 s.
 CONNECT_WAIT = 30.0
+# s the setup waits until the panel talks at all. The full status may take longer (see
+# above); the entities stay unavailable until it is there, instead of failing the setup
+# and starting over with a new connection.
+TALK_WAIT = 10.0

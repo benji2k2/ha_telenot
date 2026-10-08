@@ -79,6 +79,11 @@ Gut zu wissen:
 - **Nach einem Neustart oder Verbindungsabbruch** liest die Integration den vollständigen
   Zustand der Zentrale neu, bevor die Entitäten verfügbar werden – Änderungen am Bedienteil
   in der Zwischenzeit kommen also an.
+- **Beim Beenden von Home Assistant** schließt die Integration die Verbindung sauber, damit
+  der Wandler seinen einzigen Platz beim nächsten Start sofort freigibt. Beim Start wartet sie
+  nur, bis die Zentrale spricht; der vollständige Zustand kann danach noch ~13 s dauern. Bis
+  dahin sind die Entitäten und auch der Sensor *Verbindung* **nicht verfügbar** – erst danach
+  heißt „aus“ wirklich „Verbindung verloren“. Ein Neustart erscheint so nie als Abbruch.
 - Das Öffnen des Zentralengehäuses löst den Sabotagekontakt aus – an der Verkabelung nur bei
   unscharfer Anlage und ggf. im Errichtermodus arbeiten.
 

@@ -6,8 +6,8 @@ import asyncio
 from dataclasses import dataclass
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT, Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.const import CONF_HOST, CONF_PORT, EVENT_HOMEASSISTANT_STOP, Platform
+from homeassistant.core import Event, HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
@@ -45,10 +45,23 @@ async def wait_available(client: TelenotClient, timeout: float) -> bool:
     return True
 
 
+async def wait_talking(client: TelenotClient, timeout: float) -> bool:
+    """Wait until the converter is connected and the panel sends frames."""
+    try:
+        async with asyncio.timeout(timeout):
+            while not client.connected:
+                await asyncio.sleep(0.1)
+    except TimeoutError:
+        return False
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: TelenotConfigEntry) -> bool:
     client = TelenotClient(entry.data[CONF_HOST], entry.data[CONF_PORT], const.CLIENT_TIMING)
     client.start()
-    if not await wait_available(client, const.CONNECT_WAIT):
+    # Only wait until the panel talks: its full status can take ~13 s after a restart, and
+    # the entities simply stay unavailable until then.
+    if not await wait_talking(client, const.TALK_WAIT):
         await client.stop()
         raise ConfigEntryNotReady(
             translation_domain=DOMAIN,
@@ -66,6 +79,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: TelenotConfigEntry) -> b
     _remove_stale_devices(hass, entry, inventory)
     entry.runtime_data = TelenotData(client, inventory, panel.id)
     entry.async_on_unload(client.stop)
+
+    async def _async_stop(_event: Event) -> None:
+        # Home Assistant does not unload entries when it stops: close the connection here,
+        # so the converter's only client slot is free when it starts again.
+        await client.stop()
+
+    entry.async_on_unload(hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_stop))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

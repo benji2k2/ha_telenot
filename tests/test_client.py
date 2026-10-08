@@ -309,3 +309,29 @@ async def test_stop_is_clean(panel):
     await asyncio.sleep(0.1)
     assert panel.connections == 1
     assert ADDR_ARMED_HOME not in panel.active
+
+
+async def test_stop_closes_without_telling_the_listeners(client, panel):
+    """A stop is not a lost connection: no "disconnected" for e.g. a heartbeat automation."""
+    calls: list[set[int]] = []
+    client.add_listener(calls.append)
+    await client.stop()
+    await until(lambda: not panel._writers)  # the converter's client slot is free again
+    assert calls == []
+    assert not client.connected
+
+
+async def test_was_available_only_after_the_full_status(panel):
+    panel.status_delay = 0.4
+    c = TelenotClient("127.0.0.1", panel.port, FAST)
+    c.start()
+    try:
+        await until(lambda: c.connected)
+        assert not c.available and not c.was_available
+        await until(lambda: c.available)
+        assert c.was_available
+        await panel.drop()  # later losses keep it: "off", not "unavailable"
+        await until(lambda: not c.connected)
+        assert c.was_available
+    finally:
+        await c.stop()

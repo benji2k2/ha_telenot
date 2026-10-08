@@ -134,7 +134,12 @@ class TelenotPointSensor(TelenotBitSensor):
 
 
 class TelenotConnectionSensor(TelenotEntity, BinarySensorEntity):
-    """Whether the panel talks to Home Assistant – never unavailable itself."""
+    """Whether the panel talks to Home Assistant.
+
+    Unavailable only after a start until the panel sent its full status once (that can take
+    ~13 s); from then on "on" or "off". So a restart reads as "not there yet", not as a lost
+    connection.
+    """
 
     _attr_translation_key = "connection"
     _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
@@ -145,7 +150,7 @@ class TelenotConnectionSensor(TelenotEntity, BinarySensorEntity):
 
     @property
     def available(self) -> bool:
-        return True
+        return self._client.was_available
 
     @property
     def is_on(self) -> bool:
