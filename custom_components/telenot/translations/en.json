@@ -70,7 +70,16 @@
   "entity": {
     "alarm_control_panel": {
       "panel": {
-        "name": "Alarm system"
+        "name": "Alarm system",
+        "state": {
+          "disarmed": "Disarmed",
+          "armed_home": "Armed internally",
+          "armed_away": "Armed externally",
+          "arming": "Arming",
+          "disarming": "Disarming",
+          "pending": "Entry delay",
+          "triggered": "Alarm"
+        }
       }
     },
     "binary_sensor": {

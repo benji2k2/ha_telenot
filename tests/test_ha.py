@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from pathlib import Path
 
 from homeassistant.components.alarm_control_panel import (
     AlarmControlPanelEntityFeature,
@@ -529,3 +531,14 @@ async def test_reload_writes_no_lost_connection(hass: HomeAssistant, entry, pane
     await hass.async_block_till_done()
     await until(lambda: hass.states.get(CONNECTION).state == STATE_ON, timeout=5)
     assert STATE_OFF not in seen
+
+
+def test_panel_states_named_like_the_panel() -> None:
+    """The panel's terms (unscharf, intern/extern scharf) instead of the generic ones."""
+    base = Path(__file__).parent.parent / "custom_components" / "telenot"
+    strings = json.loads((base / "strings.json").read_text(encoding="utf-8"))
+    de = json.loads((base / "translations" / "de.json").read_text(encoding="utf-8"))
+    states = strings["entity"]["alarm_control_panel"]["panel"]["state"]
+    assert set(states) >= {"disarmed", "armed_home", "armed_away", "triggered"}
+    assert de["entity"]["alarm_control_panel"]["panel"]["state"]["disarmed"] == "Unscharf"
+    assert set(de["entity"]["alarm_control_panel"]["panel"]["state"]) == set(states)

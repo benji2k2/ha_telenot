@@ -70,7 +70,16 @@
   "entity": {
     "alarm_control_panel": {
       "panel": {
-        "name": "Alarmanlage"
+        "name": "Alarmanlage",
+        "state": {
+          "disarmed": "Unscharf",
+          "armed_home": "Intern scharf",
+          "armed_away": "Extern scharf",
+          "arming": "Wird scharf geschaltet",
+          "disarming": "Wird unscharf geschaltet",
+          "pending": "Eingangsverzögerung",
+          "triggered": "Alarm"
+        }
       }
     },
     "binary_sensor": {
