@@ -112,7 +112,10 @@ installieren → Home Assistant neu starten.
   Alarm-Karte ein Ziffernfeld.
 - **Code verlangen für** – beliebig aus *extern scharf*, *intern scharf*, *unscharf*.
   Standard: nur *extern scharf*. Nicht ausgewählte Aktionen gehen ohne Code. Ein falscher Code
-  erreicht die Zentrale nie.
+  erreicht die Zentrale nie. Home Assistant kennt nur einen Schalter für alle Scharf-Modi: Braucht
+  einer davon den Code, öffnet sich das Ziffernfeld auch beim anderen, und Dienstaufrufe müssen
+  irgendeinen Code mitgeben – geprüft wird er nur beim ausgewählten Modus. Skripte und
+  Automationen geben den Code in `code:` mit.
 - **Zentrale erneut auslesen** – nachdem der Errichter umprogrammiert hat. Nutzt die laufende
   Verbindung.
 

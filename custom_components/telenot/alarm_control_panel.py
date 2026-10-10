@@ -50,8 +50,6 @@ class TelenotAlarmPanel(TelenotEntity, AlarmControlPanelEntity):
     _attr_supported_features = (
         AlarmControlPanelEntityFeature.ARM_HOME | AlarmControlPanelEntityFeature.ARM_AWAY
     )
-    # The code is checked here per mode; HA would otherwise demand it for every arm mode.
-    _attr_code_arm_required = False
     addresses = frozenset(
         {
             ADDR_DISARMED,
@@ -68,6 +66,12 @@ class TelenotAlarmPanel(TelenotEntity, AlarmControlPanelEntity):
         self._code: str | None = entry.options.get(CONF_CODE) or None
         self._code_for: list[str] = entry.options.get(CONF_CODE_FOR, DEFAULT_CODE_FOR)
         self._attr_code_format = CodeFormat.NUMBER if self._code else None
+        # The frontend only opens its keypad for arming when this is set, so it has to be on as
+        # soon as one arm mode needs the code. Home Assistant then expects a code for every arm
+        # mode; which mode really checks it is still decided per mode in _check_code.
+        self._attr_code_arm_required = bool(self._code) and any(
+            mode in self._code_for for mode in ("arm_home", "arm_away")
+        )
 
     @property
     def alarm_state(self) -> AlarmControlPanelState | None:

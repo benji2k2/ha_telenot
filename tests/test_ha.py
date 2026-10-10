@@ -267,10 +267,43 @@ async def test_arm_away_needs_code_home_does_not(hass: HomeAssistant, entry, pan
         "alarm_control_panel", "alarm_disarm", {"entity_id": PANEL}, blocking=True
     )
     await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.DISARMED)
+    # Home Assistant asks for a code for every arm mode once one needs it;
+    # arm home does not check it.
     await hass.services.async_call(
-        "alarm_control_panel", "alarm_arm_home", {"entity_id": PANEL}, blocking=True
+        "alarm_control_panel", "alarm_arm_home", {"entity_id": PANEL, "code": "0000"}, blocking=True
     )
     await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.ARMED_HOME)
+
+
+async def test_keypad_when_a_mode_needs_the_code(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
+    # Without code_arm_required the frontend arms straight away and never shows its keypad.
+    attrs = hass.states.get(PANEL).attributes
+    assert attrs["code_arm_required"] is True
+    assert attrs["code_format"] == "number"
+    with pytest.raises(ServiceValidationError):
+        await hass.services.async_call(
+            "alarm_control_panel", "alarm_arm_home", {"entity_id": PANEL}, blocking=True
+        )
+    assert panel.commands == []
+
+
+async def test_no_keypad_for_arming_without_code_for_arm(hass: HomeAssistant, panel) -> None:  # noqa: ANN001
+    e = MockConfigEntry(
+        domain=DOMAIN,
+        unique_id=f"127.0.0.1:{panel.port}",
+        data={CONF_HOST: "127.0.0.1", CONF_PORT: panel.port, CONF_DETECTORS: stored_detectors()},
+        options={CONF_CODE: "1234", CONF_CODE_FOR: ["disarm"]},
+    )
+    e.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(e.entry_id)
+    await hass.async_block_till_done()
+    assert hass.states.get(PANEL).attributes["code_arm_required"] is False
+    await hass.services.async_call(
+        "alarm_control_panel", "alarm_arm_away", {"entity_id": PANEL}, blocking=True
+    )
+    await until(lambda: hass.states.get(PANEL).state == AlarmControlPanelState.ARMED_AWAY)
+    await hass.config_entries.async_unload(e.entry_id)
+    await hass.async_block_till_done()
 
 
 async def test_not_ready(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
@@ -309,7 +342,7 @@ async def test_alarm_and_reset_button(hass: HomeAssistant, entry, panel) -> None
 async def test_event_log_entity(hass: HomeAssistant, entry, panel) -> None:  # noqa: ANN001
     event_id = "event.telenot_complex_400_event_log"
     await hass.services.async_call(
-        "alarm_control_panel", "alarm_arm_home", {"entity_id": PANEL}, blocking=True
+        "alarm_control_panel", "alarm_arm_home", {"entity_id": PANEL, "code": "1234"}, blocking=True
     )
     await until(lambda: hass.states.get(event_id).attributes.get("event_type") == "armed_home")
     attrs = hass.states.get(event_id).attributes

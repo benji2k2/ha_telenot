@@ -113,7 +113,9 @@ restart Home Assistant.
   keypad.
 - **Require the code for** – any of *arm away*, *arm home*, *disarm*. Default:
   *arm away* only. Actions not selected work without a code. A wrong code never reaches the
-  panel.
+  panel. Home Assistant has one switch for all arm modes: as soon as one of them needs the code,
+  its keypad also opens for the other arm mode and service calls must pass some code – only the
+  selected mode checks it. Scripts and automations pass the code in `code:`.
 - **Scan the panel again** – after the installer changed the programming. Uses the running
   connection.
 
